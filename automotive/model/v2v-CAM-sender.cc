@@ -147,7 +147,7 @@ namespace ns3
             "Time between two consecutive CAMs",
             DoubleValue(0.1),
             MakeDoubleAccessor (&CAMSender::m_cam_intertime),
-            MakeDoubleChecker ())
+            MakeDoubleChecker<double> ())
         .AddAttribute ("ASN",
             "If true, it uses ASN.1 to encode and decode CAMs and DENMs",
             BooleanValue(false),
