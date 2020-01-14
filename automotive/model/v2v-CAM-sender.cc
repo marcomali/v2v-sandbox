@@ -166,8 +166,8 @@ namespace ns3
     m_veh_prefix = "veh";
     m_cam_seq = 0;
     m_cam_sent = 0;
-    m_denm_received = 0;
-    m_cam_received = 0;
+    m_denm_sent = 0;
+    m_msg_received = 0;
     m_print_summary = false;
   }
 
@@ -240,7 +240,7 @@ namespace ns3
     Simulator::Remove(m_sendCamEvent);
 
     if (m_print_summary)
-      std::cout << "INFO-" << m_id << ",CAM-SENT:" << m_cam_sent << ",DENM-RECEIVED:" << m_denm_received << ",CAM-RECEIVED:" << m_cam_received << std::endl;
+      std::cout << "INFO-" << m_id << ",DENM-SENT:" << m_denm_sent << ",CAM-SENT:" << m_cam_sent << ",MSG-RECEIVED:" << m_msg_received << std::endl;
   }
 
   void
@@ -279,7 +279,6 @@ namespace ns3
 
     // Schedule next CAM
     m_sendCamEvent = Simulator::Schedule (Seconds (m_cam_intertime), &CAMSender::SendCam, this);
-    m_cam_sent++;
   }
 
   void
@@ -307,6 +306,7 @@ namespace ns3
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) msg.str ().c_str (), packetSize);
 
     m_cam_seq++;
+    m_cam_sent++;
     // Send packet through the interface
     m_socket->Send(packet);
   }
@@ -317,7 +317,6 @@ namespace ns3
   {
     /* All the operation done here try to follow ETSI EN 302 637-2*/
     CAM_t *cam = (CAM_t*) calloc(1, sizeof(CAM_t));
-
     /* Install the high freq container */
     cam->cam.camParameters.highFrequencyContainer.present = HighFrequencyContainer_PR_basicVehicleContainerHighFrequency;
 
@@ -401,30 +400,17 @@ namespace ns3
 
     m_socket->Send (packet);
     m_cam_seq++;
+    m_cam_sent++;
 
     ASN_STRUCT_FREE(asn_DEF_CAM,cam);
   }
 
   void
-  CAMSender::Populate_and_send_normal_denm(Address address)
+  CAMSender::Populate_and_send_normal_denm(struct timespec tv)
   {
 
     // Generate the packet
     std::ostringstream msg;
-
-    /* This block computes the timestamp. If realtime-> use system time. Else, depending on if it is multi client or not, use ns3 or sumo sim time */
-    struct timespec tv;
-    if (!m_real_time)
-      {
-        double nanosec =  Simulator::Now ().GetNanoSeconds ();
-        tv.tv_sec = 0;
-        tv.tv_nsec = nanosec;
-      }
-    else
-      {
-        clock_gettime (CLOCK_MONOTONIC, &tv);
-      }
-    /* End timestamp computation */
 
     msg << "DENM,"
         << tv.tv_sec << ","
@@ -434,21 +420,18 @@ namespace ns3
     uint16_t packetSize = msg.str ().length () + 1;
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) msg.str ().c_str (), packetSize);
 
-    m_socket->SendTo (packet,2,address);
+    m_socket->Send (packet);
     m_denm_sent++;
   }
 
   void
-  CAMSender::Populate_and_send_asn_denm(Address address)
+  CAMSender::Populate_and_send_asn_denm(struct timespec tv)
   {
     /* First DENM */
     DENM_t *denm1 = (DENM_t*) calloc(1, sizeof(DENM_t));
 
     /* The DENM here is filled with random values. Be careful that some of the fields are mandatory */
 
-    /* The timestamp is set in referenceTime */
-    struct timespec tv;
-    clock_gettime (CLOCK_MONOTONIC, &tv);
     long gen_time;
     if(m_real_time)
       {
@@ -494,7 +477,7 @@ namespace ns3
         return;
       }
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) buffer1, ec+1);
-    m_socket->SendTo (packet,2,address);
+    m_socket->Send (packet);
 
     m_denm_sent++;
     ASN_STRUCT_FREE(asn_DEF_DENM,denm1);
@@ -512,6 +495,8 @@ namespace ns3
     uint8_t *buffer = new uint8_t[packet->GetSize ()];
     packet->CopyData (buffer, packet->GetSize ()-1);
 
+    m_msg_received++;
+
     if (m_asn)
       {
         /** Decoding **/
@@ -521,10 +506,9 @@ namespace ns3
         rval = uper_decode(0, &asn_DEF_DENM, &decoded_, buffer, packet->GetSize ()-1, 0, 1);
         void *decoded2_=NULL;
         rval2 = uper_decode (NULL, &asn_DEF_CAM, &decoded2_, buffer, packet->GetSize ()-1,0,1);
-
+        /* Change strategy here: sometimes the decoder get the wrong type */
         if(rval.code == RC_OK)
           {
-            m_denm_received++;
             DENM_t *decoded = (DENM_t *) decoded_;
             //std::cout << "DENM in ASN.1 format received!" << std::endl;
             /* Now in "decoded" you have the DENM */
@@ -534,7 +518,6 @@ namespace ns3
           }
         else if(rval2.code == RC_OK)
           {
-            m_cam_received++;
             CAM_t *decoded2 = (CAM_t *) decoded2_;
             //std::cout << "CAM in ASN.1 format received!" << std::endl;
             /* Now in "decoded2" you have the CAM */
@@ -548,8 +531,6 @@ namespace ns3
 
     else
       {
-        Address localAddress;
-        socket->GetSockName (localAddress);
         std::string s = std::string ((char*) buffer);
 //        std::cout << "Packet received by:" << m_id << " - from:" << from << " - content:" << s << std::endl;
         std::vector<std::string> values;
@@ -558,14 +539,13 @@ namespace ns3
         while (std::getline(ss, element, ',')) {
             values.push_back (element);
           }
-        if (values[0]=="CAM")
-          m_cam_received++;
-        else if (values[0]=="DENM")
-          m_denm_received++;
-        else
-          std::cout << "Unknown packet received by " << m_id << std::endl;
+//        if (values[0]=="CAM")
+//          //Implement CAM strategy here
+//        else if (values[0]=="DENM")
+//          //Implement DENM strategy here
+//        else
+//          std::cout << "Unknown packet received by " << m_id << std::endl;
       }
-    /* Here implement the strategy */
   }
 
   /* This function is used to calculate the delay for packet reception */

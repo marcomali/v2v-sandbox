@@ -38,7 +38,6 @@ main (int argc, char *argv[])
   bool verbose = true;
   bool realtime = false;
   bool sumo_gui = true;
-  bool aggregate_out = true;
   double sumo_updates = 0.01;
   bool send_cam = true;
   bool asn = false;
@@ -72,7 +71,6 @@ main (int argc, char *argv[])
   /* Cmd Line option for application */
   cmd.AddValue ("realtime", "Use the realtime scheduler or not", realtime);
   cmd.AddValue ("sumo-gui", "Use SUMO gui or not", sumo_gui);
-  cmd.AddValue ("server-aggregate-output", "Print an aggregate output for server", aggregate_out);
   cmd.AddValue ("sumo-updates", "SUMO granularity", sumo_updates);
   cmd.AddValue ("send-cam", "Enable car to send cam", send_cam);
   cmd.AddValue ("sumo-folder","Position of sumo config files",sumo_folder);

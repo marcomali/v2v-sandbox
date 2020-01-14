@@ -4,3 +4,7 @@ def build(bld):
     obj = bld.create_ns3_program('v2v-cv2x-sandbox', ['automotive', 'lte', 'netanim', 'traci'])
     obj.source = 'v2v-cv2x-sandbox.cc'    
 
+
+    obj = bld.create_ns3_program('v2v-80211p-sandbox', ['automotive', 'wave', 'netanim', 'traci'])
+    obj.source = 'v2v-80211p-sandbox.cc'    
+

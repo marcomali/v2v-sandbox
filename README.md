@@ -45,11 +45,15 @@ It is important to keep the folder tree that way, otherwise the simulation won't
 
 
 **Simple V2V example**
+
 To run the program:
-`./waf --run "v2v-cv2x-sandbox"`
+
+`./waf --run "v2v-cv2x-sandbox"` or
+`./waf --run "v2v-80211p-sandbox"` or
+
 
 *  Nodes are created in the ns3 simulation as vehicle enters the SUMO simulation
-*  A full cv2x stack is implemented at lower layers
+*  A full cv2x or 802.11p stack is implemented at lower layers
 
 In this example, every vehicle that enters the scenario will start sending CAM (in plain text) with freq 10 hz. The vehicles around will only receive the message and increment a counter. To switch to ASN.1 format, use the command --asn=true.
 The mobility trace is managed by the file automotive/example/sumo-files/cars.rou.xml -> please note that the very first line of this file are used to determine the number of UE to be generated in the simulation.

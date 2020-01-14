@@ -107,12 +107,12 @@ private:
   /**
    * @brief This function is to encode and send a DENM using ASN.1
   */
-  void Populate_and_send_asn_denm(Address address);
+  void Populate_and_send_asn_denm(struct timespec tv);
 
   /**
    * @brief This function is to encode and send a DENM in plain text
   */
-  void Populate_and_send_normal_denm(Address address);
+  void Populate_and_send_normal_denm(struct timespec tv);
 
   /**
    * @brief This function is to eventually compute the time diff between two timestamps
@@ -130,8 +130,7 @@ private:
   bool m_real_time;
 
   int m_cam_sent;
-  int m_denm_received;
-  int m_cam_received;
+  int m_msg_received;
   int m_denm_sent;
   bool m_print_summary;
   std::string m_server_addr;
