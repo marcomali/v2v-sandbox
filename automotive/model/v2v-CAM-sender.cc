@@ -293,7 +293,7 @@ namespace ns3
 
 
     /* Create the message to be sent in plain text */
-    msg << "CAM" << m_id << ","
+    msg << "CAM," << m_id << ","
         << lonlat.first << ","
         << lonlat.second << ","
         << m_client->TraCIAPI::vehicle.getSpeed(m_id) << ","
