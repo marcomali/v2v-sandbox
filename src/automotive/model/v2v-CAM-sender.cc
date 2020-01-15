@@ -14,7 +14,10 @@
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- */
+
+ * Edited by Marco Malinverno, Politecnico di Torino (name.surname@polito.it)
+*/
+
 #include "ns3/log.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-address.h"
@@ -57,7 +60,7 @@ namespace ns3
   std::pair <double, double> XY2LongLat(double x, double y)
   {
 
-    /*TODO: check this formula*/
+    /*TODO: check this formula */
     double z = 0; //altitude
     double r = 6371000; //Earth radius in mt
     double lat = asin(z/r);
@@ -176,6 +179,7 @@ namespace ns3
   {
     NS_LOG_FUNCTION(this);
     m_socket = 0;
+    m_socket2 = 0;
   }
 
   void
@@ -203,11 +207,11 @@ namespace ns3
 
     m_socket2 = Socket::CreateSocket (GetNode (), tid);
     m_socket2->Bind(InetSocketAddress (Ipv4Address::GetAny (), 9));
+
     // Make the callback to handle received packets
     m_socket2->SetRecvCallback (MakeCallback (&CAMSender::HandleRead, this));
 
     m_id = m_client->GetVehicleId (this->GetNode ());
-
     // Schedule CAM dissemination
     if (m_send_cam)
        m_sendCamEvent = Simulator::Schedule (Seconds (1.0), &CAMSender::SendCam, this);
@@ -259,8 +263,8 @@ namespace ns3
   {
     /*DEBUG: Print position*/
 //    Ptr<MobilityModel> mob = this->GetNode ()->GetObject<MobilityModel> ();
-//    NS_LOG_INFO("x:"<<mob->GetPosition ().x);
-//    NS_LOG_INFO("y:"<<mob->GetPosition ().y);
+//    std::cout << "x:" << mob->GetPosition ().x << std::endl;
+//    std::cout << "y:" << mob->GetPosition ().y << std::endl;
 
     /* This block computes the timestamp. If realtime-> use system time. Else use sumo sim time */
     struct timespec tv;
@@ -319,8 +323,8 @@ namespace ns3
   void
   CAMSender::Populate_and_send_asn_cam(struct timespec tv)
   {
-    /* All the operation done here try to follow ETSI EN 302 637-2*/
     CAM_t *cam = (CAM_t*) calloc(1, sizeof(CAM_t));
+
     /* Install the high freq container */
     cam->cam.camParameters.highFrequencyContainer.present = HighFrequencyContainer_PR_basicVehicleContainerHighFrequency;
 
@@ -434,7 +438,7 @@ namespace ns3
     /* First DENM */
     DENM_t *denm1 = (DENM_t*) calloc(1, sizeof(DENM_t));
 
-    /* The DENM here is filled with random values. Be careful that some of the fields are mandatory */
+    /* The DENM here is filled with useless values. Be careful that some of the fields are mandatory */
 
     long gen_time;
     if(m_real_time)
@@ -510,7 +514,8 @@ namespace ns3
         rval = uper_decode(0, &asn_DEF_DENM, &decoded_, buffer, packet->GetSize ()-1, 0, 1);
         void *decoded2_=NULL;
         rval2 = uper_decode (NULL, &asn_DEF_CAM, &decoded2_, buffer, packet->GetSize ()-1,0,1);
-        /* Change strategy here: sometimes the decoder get the wrong type */
+
+        /*TODO: Change strategy here-> sometimes the decoder get the wrong type */
         if(rval.code == RC_OK)
           {
             DENM_t *decoded = (DENM_t *) decoded_;
