@@ -66,3 +66,10 @@ The application managing the CAM dissemination (automotive/model/v2c-CAM-sender.
 * --send-cam 				           [bool] enable vehicles to send CAM
 * --asn                        [bool] if true, CAMs and DENMs are encoded and decoded using ASN.1 
 * --cam-intertime              [double] CAM dissemination intertime
+
+**IMPORTANT**
+Sometimes it may happen that in build phase you have some "Warning threated as error". To remove that, configure the project using:
+
+`CXXFLAGS="-Wall" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`
+
+and then build again

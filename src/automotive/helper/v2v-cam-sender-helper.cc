@@ -1,6 +1,6 @@
 #include "v2v-cam-sender-helper.h"
 
-#include "ns3/v2i-CAM-sender.h"
+#include "ns3/v2v-CAM-sender.h"
 #include "ns3/uinteger.h"
 #include "ns3/names.h"
 

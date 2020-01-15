@@ -120,8 +120,10 @@ private:
 
   /* Counters */
   int m_cam_sent;
-  int m_msg_received;
   int m_denm_sent;
+  int m_cam_received;
+  int m_denm_received;
+
   u_int16_t m_cam_seq; //!< CAM sequence
 
   int m_index;  //!< vehicle index
