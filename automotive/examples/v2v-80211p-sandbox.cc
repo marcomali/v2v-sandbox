@@ -14,8 +14,6 @@
 #include "ns3/netanim-module.h"
 #include <functional>
 #include <stdlib.h>
-#include <functional>
-#include <stdlib.h>
 #include <cfloat>
 #include <sstream>
 

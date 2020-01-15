@@ -145,6 +145,8 @@ private:
   bool m_send_cam;
   double m_cam_intertime;
 
+  bool m_already_print;
+
 
   long long m_start_ms; /*To save the base time of simulation*/
 

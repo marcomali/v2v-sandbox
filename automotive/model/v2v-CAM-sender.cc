@@ -169,6 +169,7 @@ namespace ns3
     m_denm_sent = 0;
     m_msg_received = 0;
     m_print_summary = false;
+    m_already_print = true;
   }
 
   CAMSender::~CAMSender ()
@@ -239,8 +240,11 @@ namespace ns3
       }
     Simulator::Remove(m_sendCamEvent);
 
-    if (m_print_summary)
-      std::cout << "INFO-" << m_id << ",DENM-SENT:" << m_denm_sent << ",CAM-SENT:" << m_cam_sent << ",MSG-RECEIVED:" << m_msg_received << std::endl;
+    if (m_print_summary && !m_already_print)
+      {
+        std::cout << "INFO-" << m_id << ",DENM-SENT:" << m_denm_sent << ",CAM-SENT:" << m_cam_sent << ",MSG-RECEIVED:" << m_msg_received << std::endl;
+        m_already_print=true;
+      }
   }
 
   void
