@@ -171,8 +171,8 @@ namespace ns3
     m_cam_sent = 0;
     m_denm_sent = 0;
     m_msg_received = 0;
-    m_print_summary = false;
-    m_already_print = true;
+    m_print_summary = true;
+    m_already_print = false;
   }
 
   CAMSender::~CAMSender ()
@@ -402,6 +402,7 @@ namespace ns3
         NS_LOG_INFO("Cannot encode CAM");
         return;
       }
+    //xer_fprint (stdout,&asn_DEF_CAM,cam); //Print what you encoded
 
     /** Packet creation **/
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) buffer, ec+1);
@@ -511,31 +512,36 @@ namespace ns3
         void *decoded_=NULL;
         asn_dec_rval_t rval, rval2;
         /* Try to decode it as a CAM and as a DENM, then check which decoding is ok */
-        rval = uper_decode(0, &asn_DEF_DENM, &decoded_, buffer, packet->GetSize ()-1, 0, 1);
+        rval = uper_decode(NULL, &asn_DEF_CAM, &decoded_, buffer, packet->GetSize ()-1, 0, 0);
         void *decoded2_=NULL;
-        rval2 = uper_decode (NULL, &asn_DEF_CAM, &decoded2_, buffer, packet->GetSize ()-1,0,1);
+        rval2 = uper_decode (NULL, &asn_DEF_DENM, &decoded2_, buffer, packet->GetSize ()-1, 0, 0);
 
-        /*TODO: Change strategy here-> sometimes the decoder get the wrong type */
-        if(rval.code == RC_OK)
+        /* Parse it as a CAM, read its type, if it is a DENM re-parse it as a DENM*/
+        CAM_t *decoded = (CAM_t *) decoded_;
+        if (decoded->header.messageID == FIX_CAMID)
           {
-            DENM_t *decoded = (DENM_t *) decoded_;
-            //std::cout << "DENM in ASN.1 format received!" << std::endl;
-            /* Now in "decoded" you have the DENM */
-            /* Build your strategy here */
-
-            ASN_STRUCT_FREE(asn_DEF_DENM,decoded);
-          }
-        else if(rval2.code == RC_OK)
-          {
-            CAM_t *decoded2 = (CAM_t *) decoded2_;
+            /* It is a CAM!*/
+            //xer_fprint (stdout,&asn_DEF_CAM,decoded2); //Print what you encoded
             //std::cout << "CAM in ASN.1 format received!" << std::endl;
-            /* Now in "decoded2" you have the CAM */
-            /* Build your strategy here */
 
-            ASN_STRUCT_FREE(asn_DEF_CAM,decoded2);
+            /* Now in "decoded" you have the CAM */
+            /* Build your strategy here */
+          }
+        else if (decoded->header.messageID == FIX_DENMID)
+          {
+            DENM_t *decoded2 = (DENM_t *) decoded2_;
+            //xer_fprint (stdout,&asn_DEF_DENM,decoded); //Print what you encoded
+            //std::cout << "DENM in ASN.1 format received!" << std::endl;
+
+            /* Now in "decoded2" you have the DENM */
+            /* Build your strategy here */
+            ASN_STRUCT_FREE(asn_DEF_DENM,decoded2);
           }
         else
             std::cout << "Unknown packet received" << std::endl;
+
+        ASN_STRUCT_FREE(asn_DEF_CAM,decoded);
+
       }
 
     else
