@@ -67,7 +67,7 @@ namespace ns3
 
   long retValue(double value, int defValue, int fix, int fixNeeded)
   {
-      if(fix < fixNeeded)
+      if(fix<fixNeeded)
           return defValue;
       else
           return value;
@@ -248,9 +248,9 @@ namespace ns3
   CAMSender::SendCam()
   {
     /*DEBUG: Print position*/
-//    Ptr<MobilityModel> mob = this->GetNode ()->GetObject<MobilityModel> ();
-//    std::cout << "x:" << mob->GetPosition ().x << std::endl;
-//    std::cout << "y:" << mob->GetPosition ().y << std::endl;
+    //Ptr<MobilityModel> mob = this->GetNode ()->GetObject<MobilityModel> ();
+    //std::cout << "x:" << mob->GetPosition ().x << std::endl;
+    //std::cout << "y:" << mob->GetPosition ().y << std::endl;
 
     if (m_asn)
       CAMSender::Populate_and_send_asn_cam();
@@ -374,7 +374,7 @@ namespace ns3
     ssize_t ec = uper_encode_to_new_buffer(&asn_DEF_CAM, constraints, cam, &buffer);
     if (ec==-1)
       {
-        NS_LOG_INFO("Cannot encode CAM");
+        std::cout << "Cannot encode CAM" << std::endl;
         return;
       }
     //xer_fprint (stdout,&asn_DEF_CAM,cam); //Print what you encoded
@@ -461,7 +461,7 @@ namespace ns3
     ssize_t ec = uper_encode_to_new_buffer(&asn_DEF_DENM, constraints, denm1, &buffer1);
     if (ec==-1)
       {
-        NS_LOG_INFO("Cannot encode DENM");
+        std::cout << "Cannot encode DENM" << std::endl;
         return;
       }
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) buffer1, ec+1);
@@ -497,21 +497,33 @@ namespace ns3
         CAM_t *decoded = (CAM_t *) decoded_;
         if (decoded->header.messageID == FIX_CAMID)
           {
+            if (rval.code != RC_OK)
+              {
+                std::cout << "CAM ASN decoding failed!" << std::endl;
+                return;
+              }
+
             /* It is a CAM!*/
             m_cam_received++;
             //xer_fprint (stdout,&asn_DEF_CAM,decoded2); //Print what you encoded
-            //std::cout << "CAM in ASN.1 format received!" << std::endl;
+            std::cout << "CAM in ASN.1 format received!" << std::endl;
 
             /* Now in "decoded" you have the CAM */
             /* Build your strategy here */
           }
         else if (decoded->header.messageID == FIX_DENMID)
           {
+            if (rval2.code != RC_OK)
+              {
+                std::cout << "DENM ASN decoding failed!" << std::endl;
+                return;
+              }
+
             DENM_t *decoded2 = (DENM_t *) decoded2_;
             m_denm_received++;
 
             //xer_fprint (stdout,&asn_DEF_DENM,decoded); //Print what you encoded
-            //std::cout << "DENM in ASN.1 format received!" << std::endl;
+            std::cout << "DENM in ASN.1 format received!" << std::endl;
 
             /* Now in "decoded2" you have the DENM */
             /* Build your strategy here */
@@ -527,7 +539,7 @@ namespace ns3
     else
       {
         std::string s = std::string ((char*) buffer);
-//        std::cout << "Packet received by:" << m_id << " - from:" << from << " - content:" << s << std::endl;
+        //std::cout << "Packet received by:" << m_id << " - from:" << from << " - content:" << s << std::endl;
         std::vector<std::string> values;
         std::stringstream ss(s);
         std::string element;
@@ -536,10 +548,10 @@ namespace ns3
           }
         if (values[0]=="CAM")
           m_cam_received++;
-//          //Implement CAM strategy here
+        //Implement CAM strategy here
         else if (values[0]=="DENM")
           m_denm_received++;
-//          //Implement DENM strategy here
+        //Implement DENM strategy here
         else
           std::cout << "Unknown packet received by " << m_id << std::endl;
       }
