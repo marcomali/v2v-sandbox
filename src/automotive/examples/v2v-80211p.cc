@@ -1,4 +1,5 @@
 #include "ns3/automotive-module.h"
+#include "ns3/traci-module.h"
 #include "ns3/core-module.h"
 #include "ns3/internet-module.h"
 #include "ns3/wifi-module.h"
@@ -6,7 +7,6 @@
 #include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/traci-applications-module.h"
 #include "ns3/network-module.h"
-#include "ns3/traci-module.h"
 #include "ns3/wave-module.h"
 #include "ns3/ocb-wifi-mac.h"
 #include "ns3/wifi-80211p-helper.h"
@@ -36,7 +36,7 @@ main (int argc, char *argv[])
   std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
   double cam_intertime = 0.1;
 
-  double simTime = 300;
+  double simTime = 100;
 
   uint16_t numberOfNodes;
   uint32_t nodeCounter = 0;
@@ -130,7 +130,7 @@ main (int argc, char *argv[])
   mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (obuNodes);
 
-  /*** 6. Setup Traci and start SUMO ***/
+  /*** 7. Setup Traci and start SUMO ***/
   Ptr<TraciClient> sumoClient = CreateObject<TraciClient> ();
   sumoClient->SetAttribute ("SumoConfigPath", StringValue (sumo_config));
   sumoClient->SetAttribute ("SumoBinaryPath", StringValue (""));    // use system installation of sumo
@@ -149,19 +149,19 @@ main (int argc, char *argv[])
   CAMSenderHelper CamSenderHelper (9);
   CamSenderHelper.SetAttribute ("Client", (PointerValue) sumoClient); // pass TraciClient object for accessing sumo in application
 
-  // callback function for node creation
+  /* callback function for node creation */
   std::function<Ptr<Node> ()> setupNewWifiNode = [&] () -> Ptr<Node>
     {
       if (nodeCounter >= obuNodes.GetN())
         NS_FATAL_ERROR("Node Pool empty!: " << nodeCounter << " nodes created.");
 
       Ptr<Node> includedNode = obuNodes.Get(nodeCounter);
-      ++nodeCounter;// increment counter for next node
+      ++nodeCounter; // increment counter for next node
 
       Ptr<Ipv4> ipv4 = includedNode->GetObject<Ipv4> ();
       Ipv4InterfaceAddress iaddr = ipv4->GetAddress (1, 0);
       Ipv4Address ipAddr = iaddr.GetBroadcast ();
-      // Install Application
+      /* Install Application */
       CamSenderHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddr));
       CamSenderHelper.SetAttribute ("Index", IntegerValue(nodeCounter));
       CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
@@ -177,25 +177,25 @@ main (int argc, char *argv[])
       return includedNode;
     };
 
-  // callback function for node shutdown
+  /* callback function for node shutdown */
   std::function<void (Ptr<Node>)> shutdownWifiNode = [] (Ptr<Node> exNode)
     {
-      // stop all applications
+      /* stop all applications */
       Ptr<CAMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMSender>();
       if(CAMSender_)
         CAMSender_->StopApplicationNow();
 
-       // set position outside communication range
+       /* set position outside communication range */
       Ptr<ConstantPositionMobilityModel> mob = exNode->GetObject<ConstantPositionMobilityModel>();
       mob->SetPosition(Vector(-1000.0+(rand()%25),320.0+(rand()%25),250.0));// rand() for visualization purposes
 
-      // NOTE: further actions could be required for a save shut down!
+      /* NOTE: further actions could be required for a save shut down! */
     };
 
-  // start traci client with given function pointers
+  /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
 
-  /*** 10. Start Simulation ***/
+  /*** 8. Start Simulation ***/
   Simulator::Stop (simulationTime);
 
   Simulator::Run ();

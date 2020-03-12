@@ -3,7 +3,6 @@
 #include "ns3/core-module.h"
 #include "ns3/lte-helper.h"
 #include "ns3/epc-helper.h"
-#include "ns3/core-module.h"
 #include "ns3/lte-v2x-helper.h"
 #include "ns3/network-module.h"
 #include "ns3/config-store.h"
@@ -11,8 +10,6 @@
 #include "ns3/internet-module.h"
 #include "ns3/mobility-module.h"
 #include "ns3/lte-module.h"
-#include <ns3/constant-position-mobility-model.h>
-#include "ns3/lte-hex-grid-enb-topology-helper.h"
 #include <ns3/cni-urbanmicrocell-propagation-loss-model.h>
 #include <ns3/buildings-helper.h>
 #include <ns3/spectrum-analyzer-helper.h>
@@ -59,12 +56,12 @@ main (int argc, char *argv[])
   uint16_t sizeSubchannel = 10;           // Number of RBs per subchannel
   uint16_t numSubchannel = 3;             // Number of subchannels per subframe
   uint16_t startRbSubchannel = 0;         // Index of first RB corresponding to subchannelization
-  uint16_t pRsvp = 100;				    // Resource reservation interval
+  uint16_t pRsvp = 100;                   // Resource reservation interval
   uint16_t t1 = 4;                        // T1 value of selection window
   uint16_t t2 = 100;                      // T2 value of selection window
   uint16_t slBandwidth;                   // Sidelink bandwidth
 
-  double simTime = 300;
+  double simTime = 100;
 
   CommandLine cmd;
 
@@ -100,17 +97,16 @@ main (int argc, char *argv[])
     {
       LogComponentEnable ("v2v-cv2x-sandbox", LOG_LEVEL_INFO);
       LogComponentEnable ("v2v-CAM-sender", LOG_LEVEL_INFO);
-      //LogComponentEnable ("LteSpectrumPhy", LOG_LEVEL_INFO);
     }
 
   /*** 0.c V2X Configurations ***/
-  // Set the UEs power in dBm
+  /* Set the UEs power in dBm */
   Config::SetDefault ("ns3::LteUePhy::TxPower", DoubleValue (ueTxPower));
   Config::SetDefault ("ns3::LteUePhy::RsrpUeMeasThreshold", DoubleValue (-10.0));
-  // Enable V2X communication on PHY layer
+  /* Enable V2X communication on PHY layer */
   Config::SetDefault ("ns3::LteUePhy::EnableV2x", BooleanValue (true));
 
-  // Set power
+  /* Set power */
   Config::SetDefault ("ns3::LteUePowerControl::Pcmax", DoubleValue (ueTxPower));
   Config::SetDefault ("ns3::LteUePowerControl::PsschTxPower", DoubleValue (ueTxPower));
   Config::SetDefault ("ns3::LteUePowerControl::PscchTxPower", DoubleValue (ueTxPower));
@@ -124,7 +120,7 @@ main (int argc, char *argv[])
       slBandwidth = (sizeSubchannel+2) * numSubchannel;
   }
 
-  // Configure for UE selected
+  /* Configure for UE selected */
   Config::SetDefault ("ns3::LteUeMac::UlBandwidth", UintegerValue(slBandwidth));
   Config::SetDefault ("ns3::LteUeMac::EnableV2xHarq", BooleanValue(harqEnabled));
   Config::SetDefault ("ns3::LteUeMac::EnableAdjacencyPscchPssch", BooleanValue(adjacencyPscchPssch));
@@ -173,13 +169,12 @@ main (int argc, char *argv[])
 
   lteHelper->DisableNewEnbPhy(); // Disable eNBs for out-of-coverage modelling
 
-  // V2X
+  /* V2X */
   Ptr<LteV2xHelper> lteV2xHelper = CreateObject<LteV2xHelper> ();
   lteV2xHelper->SetLteHelper (lteHelper);
 
-  // Configure eNBs' antenna parameters before deploying them.
+  /* Configure eNBs' antenna parameters before deploying them. */
   lteHelper->SetEnbAntennaModelType ("ns3::NistParabolic3dAntennaModel");
-
   lteHelper->SetAttribute ("UseSameUlDlPropagationCondition", BooleanValue(true));
   Config::SetDefault ("ns3::LteEnbNetDevice::UlEarfcn", StringValue ("54990"));
   lteHelper->SetAttribute ("PathlossModel", StringValue ("ns3::CniUrbanmicrocellPropagationLossModel"));
@@ -201,12 +196,12 @@ main (int argc, char *argv[])
   mobility.Install(ueNodes);
   /* Set the eNB to a fixed position */
   Ptr<MobilityModel> mobilityeNBn = enbNodes.Get (0)->GetObject<MobilityModel> ();
-  mobilityeNBn->SetPosition (Vector (0, 0, 20.0)); // set eNB to fixed position
+  mobilityeNBn->SetPosition (Vector (0, 0, 20.0)); // set eNB to fixed position - it is still disabled
 
   /*** 5. Install LTE Devices to the nodes + assign IP to UEs + manage buildings***/
-  NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (enbNodes);
+  NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (enbNodes); // If you don't do it, the simulation crashes
 
-  // Required to use NIST 3GPP model
+  /* Required to use NIST 3GPP model */
   BuildingsHelper::Install (ueNodes);
   BuildingsHelper::Install (enbNodes);
   BuildingsHelper::MakeMobilityModelConsistent ();
@@ -217,13 +212,13 @@ main (int argc, char *argv[])
   /* Install the IP stack on the UEs */
   internet.Install (ueNodes);
   Ipv4InterfaceContainer ueIpIface;
-
   ueIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
+
   /* Assign IP address to UEs */
   for (uint32_t u = 0; u < ueNodes.GetN (); ++u)
     {
       Ptr<Node> ueNode = ueNodes.Get (u);
-      // Set the default gateway for the UE
+      /* Set the default gateway for the UE */
       Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting (ueNode->GetObject<Ipv4> ());
       ueStaticRouting->SetDefaultRoute (epcHelper->GetUeDefaultGatewayAddress (), 1);
     }
@@ -234,10 +229,10 @@ main (int argc, char *argv[])
   /* Create sidelink groups */
   std::vector<NetDeviceContainer> txGroups;
   txGroups = lteV2xHelper->AssociateForV2xBroadcast(ueLteDevs, numberOfNodes);
-  // compute average number of receivers associated per transmitter and vice versa
+
+  /* compute average number of receivers associated per transmitter and vice versa */
   std::map<uint32_t, uint32_t> txPerUeMap;
   std::map<uint32_t, uint32_t> groupsPerUe;
-
   std::vector<NetDeviceContainer>::iterator gIt;
   for(gIt=txGroups.begin(); gIt != txGroups.end(); gIt++)
       {
@@ -269,7 +264,7 @@ main (int argc, char *argv[])
 
   for(gIt=txGroups.begin(); gIt != txGroups.end(); gIt++)
       {
-          // Create Sidelink bearers
+          /* Create Sidelink bearers */
           NetDeviceContainer txUe ((*gIt).Get(0));
           activeTxUes.Add(txUe);
           NetDeviceContainer rxUes = lteV2xHelper->RemoveNetDevice ((*gIt), txUe.Get (0));
@@ -278,14 +273,14 @@ main (int argc, char *argv[])
           tft = Create<LteSlTft> (LteSlTft::RECEIVE, clientRespondersAddress, groupL2Address);
           lteV2xHelper->ActivateSidelinkBearer (Seconds(0.0), rxUes, tft);
 
-          //store and increment addresses
+          /* store and increment addresses */
           groupL2Addresses.push_back (groupL2Address);
           ipAddresses.push_back (clientRespondersAddress);
           groupL2Address++;
           clientRespondersAddress = Ipv4AddressGenerator::NextAddress (Ipv4Mask ("255.0.0.0"));
       }
 
-  // Creating sidelink configuration
+  /* Creating sidelink configuration */
   Ptr<LteUeRrcSl> ueSidelinkConfiguration = CreateObject<LteUeRrcSl>();
   ueSidelinkConfiguration->SetSlEnabled(true);
   ueSidelinkConfiguration->SetV2xEnabled(true);
@@ -333,7 +328,7 @@ main (int argc, char *argv[])
   CAMSenderHelper CamSenderHelper (9);
   CamSenderHelper.SetAttribute ("Client", (PointerValue) sumoClient); // pass TraciClient object for accessing sumo in application
 
-  // callback function for node creation
+  /* callback function for node creation */
   int i=0;
   std::function<Ptr<Node> ()> setupNewWifiNode = [&] () -> Ptr<Node>
     {
@@ -341,9 +336,9 @@ main (int argc, char *argv[])
         NS_FATAL_ERROR("Node Pool empty!: " << nodeCounter << " nodes created.");
 
       Ptr<Node> includedNode = ueNodes.Get(nodeCounter);
-      ++nodeCounter;// increment counter for next node
+      ++nodeCounter; // increment counter for next node
 
-      // Install Application
+      /* Install Application */
       CamSenderHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddresses[i]));
       i++;
       CamSenderHelper.SetAttribute ("Index", IntegerValue(nodeCounter));
@@ -360,28 +355,28 @@ main (int argc, char *argv[])
       return includedNode;
     };
 
-  // callback function for node shutdown
+  /* callback function for node shutdown */
   std::function<void (Ptr<Node>)> shutdownWifiNode = [] (Ptr<Node> exNode)
     {
-      // stop all applications
+      /* stop all applications */
       Ptr<CAMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMSender>();
       if(CAMSender_)
         CAMSender_->StopApplicationNow();
 
-       // set position outside communication range
+       /* set position outside communication range */
       Ptr<ConstantPositionMobilityModel> mob = exNode->GetObject<ConstantPositionMobilityModel>();
       mob->SetPosition(Vector(-1000.0+(rand()%25),320.0+(rand()%25),250.0));// rand() for visualization purposes
 
-      // NOTE: further actions could be required for a save shut down!
+      /* NOTE: further actions could be required for a safe shut down! */
     };
 
-  // start traci client with given function pointers
+  /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
 
   /* To enable statistics collection of LTE module */
   //lteHelper->EnableTraces ();
 
-  /*** 10. Start Simulation ***/
+  /*** 8. Start Simulation ***/
   Simulator::Stop (simulationTime);
 
   Simulator::Run ();

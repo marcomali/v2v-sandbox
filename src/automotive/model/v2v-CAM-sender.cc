@@ -8,14 +8,14 @@
  *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
  * GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 
- * Edited by Marco Malinverno, Politecnico di Torino (name.surname@polito.it)
+ * Edited by Marco Malinverno, Politecnico di Torino (marco.malinverno@polito.it)
 */
 
 #include "ns3/log.h"
@@ -56,26 +56,6 @@ namespace ns3
   NS_LOG_COMPONENT_DEFINE("v2v-CAM-sender");
 
   NS_OBJECT_ENSURE_REGISTERED(CAMSender);
-
-  std::pair <double, double> XY2LongLat(double x, double y)
-  {
-
-    /*TODO: check this formula */
-    double z = 0; //altitude
-    double r = 6371000; //Earth radius in mt
-    double lat = asin(z/r);
-    double lon = 0;
-    if (x>0)
-      {
-        lon=2*atan(y/(sqrt(pow(x,2)+pow(y,2))+x));
-      }
-    else
-      {
-        lon=2*atan((sqrt(pow(x,2)+pow(y,2))-x)/y);
-      }
-
-     return std::pair <double, double> (lon, lat);
-  }
 
   long setConfidence(double confidence, const int defConfidence, double value, const int defValue)
   {
@@ -247,7 +227,12 @@ namespace ns3
 
     if (m_print_summary && !m_already_print)
       {
-        std::cout << "INFO-" << m_id << ",DENM-SENT:" << m_denm_sent << ",CAM-SENT:" << m_cam_sent << ",DENM-RECEIVED:" << m_denm_received << ",CAM-RECEIVED:" << m_cam_received << std::endl;
+        std::cout << "INFO-" << m_id
+                  << ",DENM-SENT:" << m_denm_sent
+                  << ",CAM-SENT:" << m_cam_sent
+                  << ",DENM-RECEIVED:" << m_denm_received
+                  << ",CAM-RECEIVED:" << m_cam_received
+                  << std::endl;
         m_already_print=true;
       }
   }
@@ -267,43 +252,29 @@ namespace ns3
 //    std::cout << "x:" << mob->GetPosition ().x << std::endl;
 //    std::cout << "y:" << mob->GetPosition ().y << std::endl;
 
-    /* This block computes the timestamp. If realtime-> use system time. Else use sumo sim time */
-    struct timespec tv;
-    if (!m_real_time)
-      {
-        double nanosec =  Simulator::Now ().GetNanoSeconds ();
-        tv.tv_sec = 0;
-        tv.tv_nsec = nanosec;
-      }
-    else
-      {
-        clock_gettime (CLOCK_MONOTONIC, &tv);
-      }
-    /* End timestamp computation */
-
     if (m_asn)
-      CAMSender::Populate_and_send_asn_cam(tv);
+      CAMSender::Populate_and_send_asn_cam();
     else
-      CAMSender::Populate_and_send_normal_cam(tv);
+      CAMSender::Populate_and_send_normal_cam();
 
     // Schedule next CAM
     m_sendCamEvent = Simulator::Schedule (Seconds (m_cam_intertime), &CAMSender::SendCam, this);
   }
 
   void
-  CAMSender::Populate_and_send_normal_cam(struct timespec tv)
+  CAMSender::Populate_and_send_normal_cam()
   {
     std::ostringstream msg;
 
-    double x = m_client->TraCIAPI::vehicle.getPosition(m_id).x;
-    double y = m_client->TraCIAPI::vehicle.getPosition(m_id).y;
-    std::pair<double,double> lonlat = XY2LongLat (x,y);
+    libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
+    libsumo::TraCIPosition pos_lonlat = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
 
+    struct timespec tv = compute_timestamp ();
 
     /* Create the message to be sent in plain text */
     msg << "CAM," << m_id << ","
-        << lonlat.first << ","
-        << lonlat.second << ","
+        << pos_lonlat.x << ","
+        << pos_lonlat.y << ","
         << m_client->TraCIAPI::vehicle.getSpeed(m_id) << ","
         << m_client->TraCIAPI::vehicle.getAcceleration (m_id) << ","
         << m_client->TraCIAPI::vehicle.getAngle (m_id) << ","
@@ -322,8 +293,10 @@ namespace ns3
 
 
   void
-  CAMSender::Populate_and_send_asn_cam(struct timespec tv)
+  CAMSender::Populate_and_send_asn_cam()
   {
+    struct timespec tv = compute_timestamp ();
+
     CAM_t *cam = (CAM_t*) calloc(1, sizeof(CAM_t));
 
     /* Install the high freq container */
@@ -358,18 +331,17 @@ namespace ns3
     cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingConfidence=DEF_HEADING_CONF;
 
     /* Positions */
-    double x = m_client->TraCIAPI::vehicle.getPosition(m_id).x;
-    double y = m_client->TraCIAPI::vehicle.getPosition(m_id).y;
-    std::pair<double,double> lonlat = XY2LongLat (x,y);
+    libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
+    libsumo::TraCIPosition pos_lonlat = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
 
     //altitude
     cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeConfidence=0;
     cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeValue=0;
     //latitude
-    Latitude_t latitudeT=(Latitude_t)retValue(lonlat.second*DOT_ONE_MICRO,DEF_LATITUDE,FIX2D,FIX2D);
+    Latitude_t latitudeT=(Latitude_t)retValue(pos_lonlat.y*DOT_ONE_MICRO,DEF_LATITUDE,FIX2D,FIX2D);
     cam->cam.camParameters.basicContainer.referencePosition.latitude=latitudeT;
     //longitude
-    Longitude_t longitudeT=(Longitude_t)retValue(lonlat.first*DOT_ONE_MICRO,DEF_LONGITUDE,FIX2D,FIX2D);
+    Longitude_t longitudeT=(Longitude_t)retValue(pos_lonlat.x*DOT_ONE_MICRO,DEF_LONGITUDE,FIX2D,FIX2D);
     cam->cam.camParameters.basicContainer.referencePosition.longitude=longitudeT;
 
     /* Speed */
@@ -387,11 +359,13 @@ namespace ns3
     cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration=longAcc;
 
     /* Length and width of car */
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthValue =m_client->TraCIAPI::vehicle.getLength (m_id)*10;
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthConfidenceIndication=VehicleLengthConfidenceIndication_unavailable;
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleWidth =m_client->TraCIAPI::vehicle.getWidth (m_id)*10;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthValue =
+        m_client->TraCIAPI::vehicle.getLength (m_id)*10;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthConfidenceIndication =
+        VehicleLengthConfidenceIndication_unavailable;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleWidth =
+        m_client->TraCIAPI::vehicle.getWidth (m_id)*10;
 
-    /* */
     /* We filled just some fields, you can fill them all to match any purpose */
 
     /** Encoding **/
@@ -416,8 +390,10 @@ namespace ns3
   }
 
   void
-  CAMSender::Populate_and_send_normal_denm(struct timespec tv)
+  CAMSender::Populate_and_send_normal_denm()
   {
+
+    struct timespec tv = compute_timestamp ();
 
     // Generate the packet
     std::ostringstream msg;
@@ -435,8 +411,10 @@ namespace ns3
   }
 
   void
-  CAMSender::Populate_and_send_asn_denm(struct timespec tv)
+  CAMSender::Populate_and_send_asn_denm()
   {
+    struct timespec tv = compute_timestamp ();
+
     /* First DENM */
     DENM_t *denm1 = (DENM_t*) calloc(1, sizeof(DENM_t));
 
@@ -577,6 +555,23 @@ namespace ns3
             diff = tot2 - tot1;
             return diff;
     }
+
+  struct timespec
+  CAMSender::compute_timestamp ()
+  {
+    struct timespec tv;
+    if (!m_real_time)
+      {
+        double nanosec =  Simulator::Now ().GetNanoSeconds ();
+        tv.tv_sec = 0;
+        tv.tv_nsec = nanosec;
+      }
+    else
+      {
+        clock_gettime (CLOCK_MONOTONIC, &tv);
+      }
+    return tv;
+  }
 }
 
 
