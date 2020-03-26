@@ -17,7 +17,9 @@ def build(bld):
 
     module.source = [
         'model/v2v-CAM-sender.cc',
+        'model/appSample.cc',
         'helper/v2v-cam-sender-helper.cc',
+        'helper/appSample-helper.cc',
 
         'model/asn1/AccelerationConfidence.c',
         'model/asn1/AccelerationControl.c',
@@ -219,8 +221,9 @@ def build(bld):
     headers.module = 'automotive'
     headers.source = [
         'model/v2v-CAM-sender.h',
+        'model/appSample.h',
         'helper/v2v-cam-sender-helper.h',
-
+        'helper/appSample-helper.h',
 
         'model/asn1/AccelerationConfidence.h',
         'model/asn1/AccelerationControl.h',

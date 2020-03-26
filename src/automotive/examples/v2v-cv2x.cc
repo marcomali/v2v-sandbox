@@ -326,7 +326,10 @@ main (int argc, char *argv[])
 
   /*** 7. Setup interface and application for dynamic nodes ***/
   CAMSenderHelper CamSenderHelper (9);
+  appSampleHelper AppSampleHelper;
+
   CamSenderHelper.SetAttribute ("Client", (PointerValue) sumoClient); // pass TraciClient object for accessing sumo in application
+  AppSampleHelper.SetAttribute ("Client", (PointerValue) sumoClient);
 
   /* callback function for node creation */
   int i=0;
@@ -349,8 +352,12 @@ main (int argc, char *argv[])
       CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
 
       ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
+      ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
+
       CAMSenderApp.Start (Seconds (0.0));
       CAMSenderApp.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
+      AppSample.Start (Seconds (0.0));
+      AppSample.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
 
       return includedNode;
     };
@@ -360,8 +367,12 @@ main (int argc, char *argv[])
     {
       /* stop all applications */
       Ptr<CAMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMSender>();
+      Ptr<appSample> appSample_ = exNode->GetApplication(0)->GetObject<appSample>();
+
       if(CAMSender_)
         CAMSender_->StopApplicationNow();
+      if(appSample_)
+        appSample_->StopApplicationNow();
 
        /* set position outside communication range */
       Ptr<ConstantPositionMobilityModel> mob = exNode->GetObject<ConstantPositionMobilityModel>();

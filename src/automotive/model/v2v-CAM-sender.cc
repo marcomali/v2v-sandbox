@@ -17,7 +17,6 @@
 
  * Edited by Marco Malinverno, Politecnico di Torino (marco.malinverno@polito.it)
 */
-
 #include "ns3/log.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-address.h"
@@ -44,6 +43,7 @@
 #include <errno.h>
 
 #include "v2v-CAM-sender.h"
+
 extern "C"
 {
   #include "asn1/CAM.h"
@@ -110,6 +110,11 @@ namespace ns3
             "If it is true, the branch sending the CAM is activated.",
             BooleanValue (true),
             MakeBooleanAccessor (&CAMSender::m_send_cam),
+            MakeBooleanChecker ())
+        .AddAttribute ("LonLat",
+            "If it is true, position are sent through lonlat (not XY).",
+            BooleanValue (false),
+            MakeBooleanAccessor (&CAMSender::m_lon_lat),
             MakeBooleanChecker ())
         .AddAttribute ("RealTime",
             "To compute properly timestamps",
@@ -181,18 +186,24 @@ namespace ns3
     // m_socket2 -> rx
     TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
     m_socket = Socket::CreateSocket (GetNode (), tid);
-    m_socket->Bind ();
-    m_socket->Connect (InetSocketAddress(m_ipAddress,9));
+    if (m_socket->Bind () == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket");
+      }
+    m_socket->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),9));
     m_socket->SetAllowBroadcast (true);
     m_socket->ShutdownRecv();
 
     m_socket2 = Socket::CreateSocket (GetNode (), tid);
-    m_socket2->Bind(InetSocketAddress (Ipv4Address::GetAny (), 9));
-
+    if (m_socket2->Bind (InetSocketAddress (Ipv4Address::GetAny (), 9)) == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket");
+      }
     // Make the callback to handle received packets
     m_socket2->SetRecvCallback (MakeCallback (&CAMSender::HandleRead, this));
 
     m_id = m_client->GetVehicleId (this->GetNode ());
+
     // Schedule CAM dissemination
     if (m_send_cam)
        m_sendCamEvent = Simulator::Schedule (Seconds (1.0), &CAMSender::SendCam, this);
@@ -267,19 +278,23 @@ namespace ns3
     std::ostringstream msg;
 
     libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
-    libsumo::TraCIPosition pos_lonlat = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
+
+    if (m_lon_lat)
+        pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
 
     struct timespec tv = compute_timestamp ();
 
     /* Create the message to be sent in plain text */
     msg << "CAM," << m_id << ","
-        << pos_lonlat.x << ","
-        << pos_lonlat.y << ","
+        << pos.x << ","
+        << pos.y << ","
         << m_client->TraCIAPI::vehicle.getSpeed(m_id) << ","
         << m_client->TraCIAPI::vehicle.getAcceleration (m_id) << ","
         << m_client->TraCIAPI::vehicle.getAngle (m_id) << ","
         << tv.tv_sec << "," << tv.tv_nsec << ","
         << m_cam_seq << ",end\0";
+
+    //std::cout << "pos:" << pos.x << "," << pos.y << std::endl;
 
     // Tweak: add +1, otherwise some strange character are received at the end of the packet
     uint16_t packetSize = msg.str ().length () + 1;
@@ -332,16 +347,18 @@ namespace ns3
 
     /* Positions */
     libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
-    libsumo::TraCIPosition pos_lonlat = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
+    if (m_lon_lat)
+        pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
 
     //altitude
     cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeConfidence=0;
     cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeValue=0;
     //latitude
-    Latitude_t latitudeT=(Latitude_t)retValue(pos_lonlat.y*DOT_ONE_MICRO,DEF_LATITUDE,FIX2D,FIX2D);
+    Latitude_t latitudeT=(Latitude_t)retValue(pos.y*MICRO,DEF_LATITUDE,FIX2D,FIX2D);
     cam->cam.camParameters.basicContainer.referencePosition.latitude=latitudeT;
+
     //longitude
-    Longitude_t longitudeT=(Longitude_t)retValue(pos_lonlat.x*DOT_ONE_MICRO,DEF_LONGITUDE,FIX2D,FIX2D);
+    Longitude_t longitudeT=(Longitude_t)retValue(pos.x*MICRO,DEF_LONGITUDE,FIX2D,FIX2D);
     cam->cam.camParameters.basicContainer.referencePosition.longitude=longitudeT;
 
     /* Speed */
@@ -392,11 +409,10 @@ namespace ns3
   void
   CAMSender::Populate_and_send_normal_denm()
   {
-
-    struct timespec tv = compute_timestamp ();
-
     // Generate the packet
     std::ostringstream msg;
+
+    struct timespec tv = compute_timestamp ();
 
     msg << "DENM,"
         << tv.tv_sec << ","
@@ -506,7 +522,14 @@ namespace ns3
             /* It is a CAM!*/
             m_cam_received++;
             //xer_fprint (stdout,&asn_DEF_CAM,decoded2); //Print what you encoded
-            std::cout << "CAM in ASN.1 format received!" << std::endl;
+            //std::cout << "CAM in ASN.1 format received!" << std::endl;
+            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+            cam_field_t cam;
+            cam.pos = std::make_pair(decoded->cam.camParameters.basicContainer.referencePosition.longitude,decoded->cam.camParameters.basicContainer.referencePosition.latitude);
+            cam.speed = (double)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed.speedValue;
+            cam.acceleration = (double)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration.longitudinalAccelerationValue;
+            cam.angle = (double)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.yawRate.yawRateValue;
+            app->receiveCAM (cam);
 
             /* Now in "decoded" you have the CAM */
             /* Build your strategy here */
@@ -547,8 +570,17 @@ namespace ns3
             values.push_back (element);
           }
         if (values[0]=="CAM")
-          m_cam_received++;
-        //Implement CAM strategy here
+          {
+            //Implement CAM strategy here
+            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+            cam_field_t cam;
+            cam.pos = std::make_pair(std::stod(values[2]),std::stod(values[3]));
+            cam.speed = std::stod(values[4]);
+            cam.acceleration = std::stod(values[5]);
+            cam.angle = std::stod(values[6]);
+            app->receiveCAM (cam);
+            m_cam_received++;
+          }
         else if (values[0]=="DENM")
           m_denm_received++;
         //Implement DENM strategy here

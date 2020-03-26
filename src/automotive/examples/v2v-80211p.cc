@@ -18,7 +18,7 @@
 #include <sstream>
 
 using namespace ns3;
-NS_LOG_COMPONENT_DEFINE("v2v-80211p-sandbox");
+NS_LOG_COMPONENT_DEFINE("v2v-80211p");
 
 int
 main (int argc, char *argv[])
@@ -35,6 +35,7 @@ main (int argc, char *argv[])
   std::string mob_trace = "cars.rou.xml";
   std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
   double cam_intertime = 0.1;
+  bool send_lon_lat = false;
 
   double simTime = 100;
 
@@ -53,6 +54,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
   cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
+  cmd.AddValue ("lonlat", "Send LonLat instead on XY", send_lon_lat);
 
   cmd.AddValue("sim-time", "Total duration of the simulation [s])", simTime);
 
@@ -60,7 +62,7 @@ main (int argc, char *argv[])
 
   if (verbose)
     {
-      LogComponentEnable ("v2v-80211p-sandbox", LOG_LEVEL_INFO);
+      LogComponentEnable ("v2v-80211p", LOG_LEVEL_INFO);
       LogComponentEnable ("v2v-CAM-sender", LOG_LEVEL_INFO);
     }
 
@@ -147,7 +149,10 @@ main (int argc, char *argv[])
 
   /*** 7. Setup interface and application for dynamic nodes ***/
   CAMSenderHelper CamSenderHelper (9);
+  appSampleHelper AppSampleHelper;
+
   CamSenderHelper.SetAttribute ("Client", (PointerValue) sumoClient); // pass TraciClient object for accessing sumo in application
+  AppSampleHelper.SetAttribute ("Client", (PointerValue) sumoClient);
 
   /* callback function for node creation */
   std::function<Ptr<Node> ()> setupNewWifiNode = [&] () -> Ptr<Node>
@@ -158,21 +163,21 @@ main (int argc, char *argv[])
       Ptr<Node> includedNode = obuNodes.Get(nodeCounter);
       ++nodeCounter; // increment counter for next node
 
-      Ptr<Ipv4> ipv4 = includedNode->GetObject<Ipv4> ();
-      Ipv4InterfaceAddress iaddr = ipv4->GetAddress (1, 0);
-      Ipv4Address ipAddr = iaddr.GetBroadcast ();
       /* Install Application */
-      CamSenderHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddr));
       CamSenderHelper.SetAttribute ("Index", IntegerValue(nodeCounter));
+      CamSenderHelper.SetAttribute ("LonLat", (BooleanValue) send_lon_lat);
+      CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
       CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
       CamSenderHelper.SetAttribute ("RealTime", BooleanValue(realtime));
       CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue(true));
-      CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
       CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
 
       ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
+      ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
       CAMSenderApp.Start (Seconds (0.0));
       CAMSenderApp.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
+      AppSample.Start (Seconds (0.0));
+      AppSample.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
 
       return includedNode;
     };
@@ -182,8 +187,12 @@ main (int argc, char *argv[])
     {
       /* stop all applications */
       Ptr<CAMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMSender>();
+      Ptr<appSample> appSample_ = exNode->GetApplication(0)->GetObject<appSample>();
+
       if(CAMSender_)
         CAMSender_->StopApplicationNow();
+      if(appSample_)
+        appSample_->StopApplicationNow();
 
        /* set position outside communication range */
       Ptr<ConstantPositionMobilityModel> mob = exNode->GetObject<ConstantPositionMobilityModel>();
