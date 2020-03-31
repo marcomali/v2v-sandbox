@@ -59,16 +59,16 @@ The CAMs and DENMs dissemination logic are in v2v-CAM-DENM-sender.cc while the r
 
 The SUMO scenario comprehends a ring-like topology, with two directions and two lanes for direction (total 4 lanes). 
 
-![](img/img1)
+![](img/img1.png)
 
 The mobility trace is managed by the file automotive/example/sumo-files/cars.rou.xml -> please note that the very first line of this file are used to determine the number of UE to be generated in the simulation and is very important to update it if the number of vehicles changes.
 The SUMO map embeds also some re-routers that allows the vehicles to move in the map without exiting.
 
 For visualization puproses, in SUMO normal vehicles are shown as yellow cars, while ambulances are red. When a vehicle is the routine that allows the ambulance to takeover, it turns orange.
 
-![](img/img2)
+![](img/img2.png)
 
-![](img/img3)
+![](img/img3.png)
 
 
 **List of most important commands**
