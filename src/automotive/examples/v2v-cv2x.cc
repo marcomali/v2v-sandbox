@@ -29,7 +29,7 @@ NS_LOG_COMPONENT_DEFINE("v2v-cv2x-sandbox");
 int
 main (int argc, char *argv[])
 {
-  double baseline= 150.0;     // Baseline distance in meter (150m for urban, 320m for freeway)
+  double baseline= 320.0;     // Baseline distance in meter (150m for urban, 320m for freeway)
 
   /*** 0.a App Options ***/
   bool verbose = true;
@@ -42,6 +42,7 @@ main (int argc, char *argv[])
   std::string mob_trace = "cars.rou.xml";
   std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
   double cam_intertime = 0.1;
+  bool send_lon_lat = false;
 
   /*** 0.b LENA + V2X Options ***/
   uint16_t numberOfNodes;
@@ -75,7 +76,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
   cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
-
+  cmd.AddValue ("lonlat", "Send LonLat instead on XY", send_lon_lat);
 
   /* Cmd Line option for v2x */
   cmd.AddValue ("adjacencyPscchPssch", "Scheme for subchannelization", adjacencyPscchPssch);
@@ -158,7 +159,7 @@ main (int argc, char *argv[])
   /* Manipulate the string to get only the number of vehicles present */
   num_client.erase (0,24);
   num_client.erase (num_client.end ()-4,num_client.end ());
-  numberOfNodes = std::stoi (num_client)+1;
+  numberOfNodes = std::stoi (num_client);
 
   ns3::Time simulationTime (ns3::Seconds(simTime));
 
@@ -328,8 +329,18 @@ main (int argc, char *argv[])
   CAMSenderHelper CamSenderHelper (9);
   appSampleHelper AppSampleHelper;
 
-  CamSenderHelper.SetAttribute ("Client", (PointerValue) sumoClient); // pass TraciClient object for accessing sumo in application
-  AppSampleHelper.SetAttribute ("Client", (PointerValue) sumoClient);
+  CamSenderHelper.SetAttribute ("Client", PointerValue(sumoClient)); // pass TraciClient object for accessing sumo in application
+  CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
+  CamSenderHelper.SetAttribute ("LonLat", BooleanValue(send_lon_lat));
+  CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
+  CamSenderHelper.SetAttribute ("RealTime", BooleanValue(realtime));
+  CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue(true));
+  CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
+  CamSenderHelper.SetAttribute ("Model", StringValue("cv2x"));
+
+  AppSampleHelper.SetAttribute ("Client", PointerValue(sumoClient));
+  AppSampleHelper.SetAttribute ("LonLat", BooleanValue(send_lon_lat));
+  AppSampleHelper.SetAttribute ("ASN", BooleanValue(asn));
 
   /* callback function for node creation */
   int i=0;
@@ -345,11 +356,6 @@ main (int argc, char *argv[])
       CamSenderHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddresses[i]));
       i++;
       CamSenderHelper.SetAttribute ("Index", IntegerValue(nodeCounter));
-      CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
-      CamSenderHelper.SetAttribute ("RealTime", BooleanValue(realtime));
-      CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue(true));
-      CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
-      CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
 
       ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
       ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
@@ -366,7 +372,7 @@ main (int argc, char *argv[])
   std::function<void (Ptr<Node>)> shutdownWifiNode = [] (Ptr<Node> exNode)
     {
       /* stop all applications */
-      Ptr<CAMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMSender>();
+      Ptr<CAMDENMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMDENMSender>();
       Ptr<appSample> appSample_ = exNode->GetApplication(0)->GetObject<appSample>();
 
       if(CAMSender_)

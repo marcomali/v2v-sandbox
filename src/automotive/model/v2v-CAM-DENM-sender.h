@@ -1,5 +1,5 @@
-#ifndef V2V_CAM_SENDER_H
-#define V2V_CAM_SENDER_H
+#ifndef V2V_CAM_DENM_SENDER_H
+#define V2V_CAM_DENM_SENDER_H
 
 #include "ns3/traci-client.h"
 #include "ns3/constant-position-mobility-model.h"
@@ -44,7 +44,7 @@ namespace ns3 {
 class Socket;
 class Packet;
 
-class CAMSender : public Application
+class CAMDENMSender : public Application
 {
 public:
   /**
@@ -53,11 +53,31 @@ public:
    */
   static TypeId GetTypeId (void);
 
-  CAMSender ();
+  CAMDENMSender ();
 
-  virtual ~CAMSender ();
+  virtual ~CAMDENMSender ();
 
   void StopApplicationNow ();
+
+  /**
+   * @brief This function is to encode and send a DENM using ASN.1
+  */
+  void Populate_and_send_asn_denm();
+
+  /**
+   * @brief This function is to encode and send a DENM in plain text
+  */
+  void Populate_and_send_normal_denm();
+  /**
+   * @brief This function is to encode and send a CAM using ASN.1
+  */
+  void Populate_and_send_asn_cam();
+
+  /**
+   * @brief This function is to send a CAM in plain text
+  */
+  void Populate_and_send_normal_cam();
+
 
 protected:
   virtual void DoDispose (void);
@@ -80,26 +100,6 @@ private:
    * \param the socket the packet was received to.
    */
   void HandleRead (Ptr<Socket> socket);
-
-  /**
-   * @brief This function is to encode and send a CAM using ASN.1
-  */
-  void Populate_and_send_asn_cam();
-
-  /**
-   * @brief This function is to send a CAM in plain text
-  */
-  void Populate_and_send_normal_cam();
-
-  /**
-   * @brief This function is to encode and send a DENM using ASN.1
-  */
-  void Populate_and_send_asn_denm();
-
-  /**
-   * @brief This function is to encode and send a DENM in plain text
-  */
-  void Populate_and_send_normal_denm();
 
   /**
    * @brief This function is to eventually compute the time diff between two timestamps
@@ -137,6 +137,7 @@ private:
   int m_index;  //!< vehicle index
   std::string m_id; //!< vehicle id
   std::string m_veh_prefix; //!< prefix used in SUMO
+  std::string m_model; //!< Communication Model (possible values: 80211p and cv2x
 
   long long m_start_ms; //!< To save the base time of simulation*/
 

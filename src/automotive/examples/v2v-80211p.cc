@@ -87,7 +87,7 @@ main (int argc, char *argv[])
   /* Manipulate the string to get only the number of vehicles present */
   num_client.erase (0,24);
   num_client.erase (num_client.end ()-4,num_client.end ());
-  numberOfNodes = std::stoi (num_client)+1;
+  numberOfNodes = std::stoi (num_client);
 
   ns3::Time simulationTime (ns3::Seconds(simTime));
 
@@ -152,7 +152,17 @@ main (int argc, char *argv[])
   appSampleHelper AppSampleHelper;
 
   CamSenderHelper.SetAttribute ("Client", (PointerValue) sumoClient); // pass TraciClient object for accessing sumo in application
+  CamSenderHelper.SetAttribute ("LonLat", (BooleanValue) send_lon_lat);
+  CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
+  CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
+  CamSenderHelper.SetAttribute ("RealTime", BooleanValue(realtime));
+  CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue(true));
+  CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
+  CamSenderHelper.SetAttribute ("Model", StringValue("80211p"));
+
   AppSampleHelper.SetAttribute ("Client", (PointerValue) sumoClient);
+  AppSampleHelper.SetAttribute ("LonLat", (BooleanValue) send_lon_lat);
+  AppSampleHelper.SetAttribute ("ASN", BooleanValue(asn));
 
   /* callback function for node creation */
   std::function<Ptr<Node> ()> setupNewWifiNode = [&] () -> Ptr<Node>
@@ -165,15 +175,11 @@ main (int argc, char *argv[])
 
       /* Install Application */
       CamSenderHelper.SetAttribute ("Index", IntegerValue(nodeCounter));
-      CamSenderHelper.SetAttribute ("LonLat", (BooleanValue) send_lon_lat);
-      CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
-      CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
-      CamSenderHelper.SetAttribute ("RealTime", BooleanValue(realtime));
-      CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue(true));
-      CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
+
 
       ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
       ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
+
       CAMSenderApp.Start (Seconds (0.0));
       CAMSenderApp.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
       AppSample.Start (Seconds (0.0));
@@ -186,7 +192,7 @@ main (int argc, char *argv[])
   std::function<void (Ptr<Node>)> shutdownWifiNode = [] (Ptr<Node> exNode)
     {
       /* stop all applications */
-      Ptr<CAMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMSender>();
+      Ptr<CAMDENMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMDENMSender>();
       Ptr<appSample> appSample_ = exNode->GetApplication(0)->GetObject<appSample>();
 
       if(CAMSender_)

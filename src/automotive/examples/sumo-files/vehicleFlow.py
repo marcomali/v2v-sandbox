@@ -44,40 +44,16 @@ def line_prepender(filename, line):
 
 def write_init(f,options):
     f.write('<routes>\n')
-    f.write('  <route id="0" edges="w_to_c1 c1_to_c2 c2_to_e"/>\n')
-    f.write('  <route id="1" edges="n1_to_c1 c1_to_s1"/>\n')
-    f.write('  <route id="2" edges="s1_to_c1 c1_to_n1"/>\n')
-    f.write('  <route id="3" edges="n2_to_c2 c2_to_s2"/>\n')
-    f.write('  <route id="4" edges="e_to_c2 c2_to_c1 c1_to_w"/>\n')
-    f.write('  <route id="5" edges="s2_to_c2 c2_to_n2"/>\n')
-    f.write('  <route id="6" edges="w_to_c1 c1_to_s1"/>\n')
-    f.write('  <route id="7" edges="w_to_c1 c1_to_c2 c2_to_s2"/>\n')
-    f.write('  <route id="8" edges="w_to_c1 c1_to_c2 c2_to_n2"/>\n')
-    f.write('  <route id="9" edges="w_to_c1 c1_to_n1"/>\n')
-    f.write('  <route id="10" edges="s1_to_c1 c1_to_c2 c2_to_s2"/>\n')
-    f.write('  <route id="11" edges="s1_to_c1 c1_to_c2 c2_to_e"/>\n')
-    f.write('  <route id="12" edges="s1_to_c1 c1_to_c2 c2_to_n2"/>\n')
-    f.write('  <route id="13" edges="s1_to_c1 c1_to_w"/>\n')
-    f.write('  <route id="14" edges="s2_to_c2 c2_to_e"/>\n')
-    f.write('  <route id="15" edges="s2_to_c2 c2_to_c1 c1_to_n1"/>\n')
-    f.write('  <route id="16" edges="s2_to_c2 c2_to_c1 c1_to_w"/>\n')
-    f.write('  <route id="17" edges="s2_to_c2 c2_to_c1 c1_to_s1"/>\n')
-    f.write('  <route id="18" edges="e_to_c2 c2_to_n2"/>\n')
-    f.write('  <route id="19" edges="e_to_c2 c2_to_c1 c1_to_n1"/>\n')
-    f.write('  <route id="20" edges="e_to_c2 c2_to_c1 c1_to_s1"/>\n')
-    f.write('  <route id="21" edges="e_to_c2 c2_to_s2"/>\n')
-    f.write('  <route id="22" edges="n2_to_c2 c2_to_c1 c1_to_n1"/>\n')
-    f.write('  <route id="23" edges="n2_to_c2 c2_to_c1 c1_to_w"/>\n')
-    f.write('  <route id="24" edges="n2_to_c2 c2_to_c1 c1_to_s1"/>\n')
-    f.write('  <route id="25" edges="n2_to_c2 c2_to_e"/>\n')
-    f.write('  <route id="26" edges="n1_to_c1 c1_to_w"/>\n')
-    f.write('  <route id="27" edges="n1_to_c1 c1_to_c2 c2_to_s2"/>\n')
-    f.write('  <route id="28" edges="n1_to_c1 c1_to_c2 c2_to_e"/>\n')
-    f.write('  <route id="29" edges="n1_to_c1 c1_to_c2 c2_to_n2"/>\n')
-
-
+    f.write('  <route id="0" edges="ne_to_nw nw_to_sw sw_to_se se_to_ne"/>\n')
+    f.write('  <route id="1" edges="se_to_sw sw_to_nw nw_to_ne ne_to_se"/>\n')
+    f.write('  <route id="2" edges="nw_to_sw sw_to_se se_to_ne ne_to_nw"/>\n')
+    f.write('  <route id="3" edges="sw_to_nw nw_to_ne ne_to_se se_to_sw"/>\n')
+    f.write('  <route id="4" edges="sw_to_se se_to_ne ne_to_nw nw_to_sw"/>\n')
+    f.write('  <route id="5" edges="nw_to_ne ne_to_se se_to_sw sw_to_nw"/>\n')
+ 
     f.write('\n')
-    f.write('  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="%s" speedDev="%s" speedFactor="%s" id="Car0" maxSpeed="%s" />\n' % (options.minGap, options.speedDev, options.speedFactor, options.maxSpeed))
+    f.write('  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="%s" id="Car0" maxSpeed="20.83" />\n' % (options.minGap))
+    f.write('  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="%s" id="Car1" maxSpeed="20.83" vClass="emergency" />\n' % (options.minGap))
     f.write('\n')
 
 def write_veh(f, name, index, depart, route_var):
@@ -100,14 +76,14 @@ def main():
         if options.total == 0:
             while last_depart < options.end:
                 intertime = random.expovariate(options.rate)
-                route_var = int(random.uniform(0,29))
+                route_var = int(random.uniform(0,6))
                 write_veh(f, options.name, index, last_depart+intertime, route_var)
                 last_depart += intertime
                 index += 1
         else:
             while i < int(options.total):
                 intertime = random.expovariate(options.rate)
-                route_var = int(random.uniform(0,29))
+                route_var = int(random.uniform(0,6))
                 write_veh(f, options.name, index, last_depart+intertime, route_var)
                 last_depart += intertime
                 index += 1

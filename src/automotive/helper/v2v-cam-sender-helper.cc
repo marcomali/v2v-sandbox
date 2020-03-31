@@ -1,6 +1,5 @@
 #include "v2v-cam-sender-helper.h"
-
-#include "ns3/v2v-CAM-sender.h"
+#include "ns3/v2v-CAM-DENM-sender.h"
 #include "ns3/uinteger.h"
 #include "ns3/names.h"
 
@@ -8,13 +7,13 @@ namespace ns3 {
 
 CAMSenderHelper::CAMSenderHelper (uint16_t port)
 {
-  m_factory.SetTypeId (CAMSender::GetTypeId ());
+  m_factory.SetTypeId (CAMDENMSender::GetTypeId ());
   SetAttribute ("Port", UintegerValue (port));
 }
 
 CAMSenderHelper::CAMSenderHelper (std::string protocol, Address address)
 {
-  m_factory.SetTypeId (CAMSender::GetTypeId ());
+  m_factory.SetTypeId (CAMDENMSender::GetTypeId ());
   m_factory.Set ("Protocol", StringValue (protocol));
   m_factory.Set ("Local", AddressValue (address));
 }
@@ -55,7 +54,7 @@ CAMSenderHelper::Install (NodeContainer c) const
 Ptr<Application>
 CAMSenderHelper::InstallPriv (Ptr<Node> node) const
 {
-  Ptr<Application> app = m_factory.Create<CAMSender> ();
+  Ptr<Application> app = m_factory.Create<CAMDENMSender> ();
   node->AddApplication (app);
 
   return app;

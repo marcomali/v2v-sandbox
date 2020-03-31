@@ -17,6 +17,7 @@
 
  * Edited by Marco Malinverno, Politecnico di Torino (marco.malinverno@polito.it)
 */
+
 #include "ns3/log.h"
 #include "ns3/ipv4.h"
 #include "ns3/ipv4-address.h"
@@ -42,7 +43,7 @@
 
 #include <errno.h>
 
-#include "v2v-CAM-sender.h"
+#include "v2v-CAM-DENM-sender.h"
 
 extern "C"
 {
@@ -55,7 +56,7 @@ namespace ns3
 
   NS_LOG_COMPONENT_DEFINE("v2v-CAM-sender");
 
-  NS_OBJECT_ENSURE_REGISTERED(CAMSender);
+  NS_OBJECT_ENSURE_REGISTERED(CAMDENMSender);
 
   long setConfidence(double confidence, const int defConfidence, double value, const int defValue)
   {
@@ -74,78 +75,83 @@ namespace ns3
   }
 
   TypeId
-  CAMSender::GetTypeId (void)
+  CAMDENMSender::GetTypeId (void)
   {
     static TypeId tid =
-        TypeId ("ns3::CAMSender")
+        TypeId ("ns3::CAMDENMSender")
         .SetParent<Application> ()
         .SetGroupName ("Applications")
-        .AddConstructor<CAMSender> ()
+        .AddConstructor<CAMDENMSender> ()
         .AddAttribute ("Port",
             "The port on which the client will listen for incoming packets.",
             UintegerValue (9),
-            MakeUintegerAccessor (&CAMSender::m_port),
+            MakeUintegerAccessor (&CAMDENMSender::m_port),
             MakeUintegerChecker<uint16_t> ())
         .AddAttribute ("NodePrefix",
             "The prefix used to idefy vehicles in SUMO.",
             StringValue ("veh"),
-            MakeStringAccessor (&CAMSender::m_veh_prefix),
+            MakeStringAccessor (&CAMDENMSender::m_veh_prefix),
             MakeStringChecker ())
         .AddAttribute ("IpAddr",
             "IpAddr",
             Ipv4AddressValue ("10.0.0.1"),
-            MakeIpv4AddressAccessor (&CAMSender::m_ipAddress),
+            MakeIpv4AddressAccessor (&CAMDENMSender::m_ipAddress),
             MakeIpv4AddressChecker ())
         .AddAttribute ("Client",
             "TraCI client for SUMO",
             PointerValue (0),
-            MakePointerAccessor (&CAMSender::m_client),
+            MakePointerAccessor (&CAMDENMSender::m_client),
             MakePointerChecker<TraciClient> ())
         .AddAttribute ("Index",
             "Index of the current node",
             IntegerValue (1),
-            MakeIntegerAccessor (&CAMSender::m_index),
+            MakeIntegerAccessor (&CAMDENMSender::m_index),
             MakeIntegerChecker<int> ())
         .AddAttribute ("SendCam",
             "If it is true, the branch sending the CAM is activated.",
             BooleanValue (true),
-            MakeBooleanAccessor (&CAMSender::m_send_cam),
+            MakeBooleanAccessor (&CAMDENMSender::m_send_cam),
             MakeBooleanChecker ())
         .AddAttribute ("LonLat",
             "If it is true, position are sent through lonlat (not XY).",
             BooleanValue (false),
-            MakeBooleanAccessor (&CAMSender::m_lon_lat),
+            MakeBooleanAccessor (&CAMDENMSender::m_lon_lat),
             MakeBooleanChecker ())
         .AddAttribute ("RealTime",
             "To compute properly timestamps",
             BooleanValue(false),
-            MakeBooleanAccessor (&CAMSender::m_real_time),
+            MakeBooleanAccessor (&CAMDENMSender::m_real_time),
             MakeBooleanChecker ())
         .AddAttribute ("PrintSummary",
             "To print summary at the end of simulation",
             BooleanValue(false),
-            MakeBooleanAccessor (&CAMSender::m_print_summary),
+            MakeBooleanAccessor (&CAMDENMSender::m_print_summary),
             MakeBooleanChecker ())
         .AddAttribute ("ServerAddr",
             "Ip Addr of the server",
             StringValue("10.0.0.1"),
-            MakeStringAccessor (&CAMSender::m_server_addr),
+            MakeStringAccessor (&CAMDENMSender::m_server_addr),
             MakeStringChecker ())
         .AddAttribute ("CAMIntertime",
             "Time between two consecutive CAMs",
             DoubleValue(0.1),
-            MakeDoubleAccessor (&CAMSender::m_cam_intertime),
+            MakeDoubleAccessor (&CAMDENMSender::m_cam_intertime),
             MakeDoubleChecker<double> ())
+        .AddAttribute ("Model",
+            "The prefix used to idefy vehicles in SUMO.",
+            StringValue (""),
+            MakeStringAccessor (&CAMDENMSender::m_model),
+            MakeStringChecker ())
         .AddAttribute ("ASN",
             "If true, it uses ASN.1 to encode and decode CAMs and DENMs",
             BooleanValue(false),
-            MakeBooleanAccessor (&CAMSender::m_asn),
+            MakeBooleanAccessor (&CAMDENMSender::m_asn),
             MakeBooleanChecker ());
 
         return tid;
   }
 
-  CAMSender::CAMSender ()
+  CAMDENMSender::CAMDENMSender ()
   {
     NS_LOG_FUNCTION(this);
     m_socket = 0;
@@ -161,7 +167,7 @@ namespace ns3
     m_already_print = false;
   }
 
-  CAMSender::~CAMSender ()
+  CAMDENMSender::~CAMDENMSender ()
   {
     NS_LOG_FUNCTION(this);
     m_socket = 0;
@@ -169,17 +175,17 @@ namespace ns3
   }
 
   void
-  CAMSender::DoDispose (void)
+  CAMDENMSender::DoDispose (void)
   {
     NS_LOG_FUNCTION(this);
     Application::DoDispose ();
   }
 
   void
-  CAMSender::StartApplication (void)
+  CAMDENMSender::StartApplication (void)
   {
     NS_LOG_FUNCTION(this);
-    RngSeedManager::SetSeed (m_index);
+    RngSeedManager::SetSeed (m_index+1);
 
     // Create the UDP sockets for the client
     // m_socket -> tx
@@ -190,7 +196,13 @@ namespace ns3
       {
         NS_FATAL_ERROR ("Failed to bind client socket");
       }
-    m_socket->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),9));
+    if(m_model=="80211p")
+      m_socket->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),9));
+    else if(m_model=="cv2x")
+      m_socket->Connect (InetSocketAddress(m_ipAddress,9));
+    else
+      NS_FATAL_ERROR ("No communication model set - check simulation script");
+
     m_socket->SetAllowBroadcast (true);
     m_socket->ShutdownRecv();
 
@@ -200,13 +212,13 @@ namespace ns3
         NS_FATAL_ERROR ("Failed to bind client socket");
       }
     // Make the callback to handle received packets
-    m_socket2->SetRecvCallback (MakeCallback (&CAMSender::HandleRead, this));
+    m_socket2->SetRecvCallback (MakeCallback (&CAMDENMSender::HandleRead, this));
 
     m_id = m_client->GetVehicleId (this->GetNode ());
 
     // Schedule CAM dissemination
     if (m_send_cam)
-       m_sendCamEvent = Simulator::Schedule (Seconds (1.0), &CAMSender::SendCam, this);
+       m_sendCamEvent = Simulator::Schedule (Seconds (1.0), &CAMDENMSender::SendCam, this);
 
     /* If we are in realtime, save a base timestamp to start from */
     if(m_real_time)
@@ -218,7 +230,7 @@ namespace ns3
   }
 
   void
-  CAMSender::StopApplication ()
+  CAMDENMSender::StopApplication ()
   {
     NS_LOG_FUNCTION(this);
 
@@ -249,40 +261,44 @@ namespace ns3
   }
 
   void
-  CAMSender::StopApplicationNow ()
+  CAMDENMSender::StopApplicationNow ()
   {
     NS_LOG_FUNCTION(this);
     StopApplication ();
   }
 
   void
-  CAMSender::SendCam()
+  CAMDENMSender::SendCam()
   {
     /*DEBUG: Print position*/
     //Ptr<MobilityModel> mob = this->GetNode ()->GetObject<MobilityModel> ();
     //std::cout << "x:" << mob->GetPosition ().x << std::endl;
     //std::cout << "y:" << mob->GetPosition ().y << std::endl;
+    //std::cout << "x_sumo:" << m_client->TraCIAPI::vehicle.getPosition (m_id).x<< std::endl;
+    //std::cout << "y_sumo:" << m_client->TraCIAPI::vehicle.getPosition (m_id).y << std::endl;
 
     if (m_asn)
-      CAMSender::Populate_and_send_asn_cam();
+      CAMDENMSender::Populate_and_send_asn_cam();
     else
-      CAMSender::Populate_and_send_normal_cam();
+      CAMDENMSender::Populate_and_send_normal_cam();
 
     // Schedule next CAM
-    m_sendCamEvent = Simulator::Schedule (Seconds (m_cam_intertime), &CAMSender::SendCam, this);
+    m_sendCamEvent = Simulator::Schedule (Seconds (m_cam_intertime), &CAMDENMSender::SendCam, this);
   }
 
   void
-  CAMSender::Populate_and_send_normal_cam()
+  CAMDENMSender::Populate_and_send_normal_cam()
   {
+    struct timespec tv = compute_timestamp ();
+
     std::ostringstream msg;
 
     libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
 
+    /* If lonlat is used, positions should be converted */
     if (m_lon_lat)
         pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
 
-    struct timespec tv = compute_timestamp ();
 
     /* Create the message to be sent in plain text */
     msg << "CAM," << m_id << ","
@@ -293,8 +309,6 @@ namespace ns3
         << m_client->TraCIAPI::vehicle.getAngle (m_id) << ","
         << tv.tv_sec << "," << tv.tv_nsec << ","
         << m_cam_seq << ",end\0";
-
-    //std::cout << "pos:" << pos.x << "," << pos.y << std::endl;
 
     // Tweak: add +1, otherwise some strange character are received at the end of the packet
     uint16_t packetSize = msg.str ().length () + 1;
@@ -308,7 +322,7 @@ namespace ns3
 
 
   void
-  CAMSender::Populate_and_send_asn_cam()
+  CAMDENMSender::Populate_and_send_asn_cam()
   {
     struct timespec tv = compute_timestamp ();
 
@@ -407,14 +421,22 @@ namespace ns3
   }
 
   void
-  CAMSender::Populate_and_send_normal_denm()
+  CAMDENMSender::Populate_and_send_normal_denm()
   {
     // Generate the packet
     std::ostringstream msg;
 
     struct timespec tv = compute_timestamp ();
 
+    /* In order to encode the info about the edge, the string is hashed */
+    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+    int my_edge_hash = (int)std::hash<std::string>{}(my_edge)%10000;
+
+    double my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
+
     msg << "DENM,"
+        << my_edge_hash << ","
+        << my_pos_on_edge << ","
         << tv.tv_sec << ","
         << tv.tv_nsec << ",end\0";
 
@@ -427,7 +449,7 @@ namespace ns3
   }
 
   void
-  CAMSender::Populate_and_send_asn_denm()
+  CAMDENMSender::Populate_and_send_asn_denm()
   {
     struct timespec tv = compute_timestamp ();
 
@@ -462,10 +484,16 @@ namespace ns3
     denm1->denm.management.stationType=stationType;
     denm1->denm.management.actionID.originatingStationID=0;
 
-    denm1->denm.management.eventPosition.latitude=Latitude_unavailable;
+    /* In order to encode the info about the edge, the string is hashed */
+    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+    int my_edge_hash = (int)std::hash<std::string>{}(my_edge)%10000;
+
+    double my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
+
+    denm1->denm.management.eventPosition.latitude=my_edge_hash;
     denm1->denm.management.eventPosition.altitude.altitudeConfidence=AltitudeConfidence_unavailable;
     denm1->denm.management.eventPosition.altitude.altitudeValue=AltitudeValue_unavailable;
-    denm1->denm.management.eventPosition.longitude=Longitude_unavailable;
+    denm1->denm.management.eventPosition.longitude=my_pos_on_edge;
 
     /* We encode the seq_num in sequenceNumber and the precedence in messageID (FIX THIS) */
     denm1->header.messageID=FIX_DENMID;
@@ -489,7 +517,7 @@ namespace ns3
 
 
   void
-  CAMSender::HandleRead (Ptr<Socket> socket)
+  CAMDENMSender::HandleRead (Ptr<Socket> socket)
   {
     NS_LOG_FUNCTION(this << socket);
     Ptr<Packet> packet;
@@ -520,6 +548,10 @@ namespace ns3
               }
 
             /* It is a CAM!*/
+
+            /* Now in "decoded" you have the CAM */
+
+            /* Build your strategy here */
             m_cam_received++;
             //xer_fprint (stdout,&asn_DEF_CAM,decoded2); //Print what you encoded
             //std::cout << "CAM in ASN.1 format received!" << std::endl;
@@ -531,8 +563,6 @@ namespace ns3
             cam.angle = (double)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.yawRate.yawRateValue;
             app->receiveCAM (cam);
 
-            /* Now in "decoded" you have the CAM */
-            /* Build your strategy here */
           }
         else if (decoded->header.messageID == FIX_DENMID)
           {
@@ -543,13 +573,20 @@ namespace ns3
               }
 
             DENM_t *decoded2 = (DENM_t *) decoded2_;
-            m_denm_received++;
-
-            //xer_fprint (stdout,&asn_DEF_DENM,decoded); //Print what you encoded
-            std::cout << "DENM in ASN.1 format received!" << std::endl;
 
             /* Now in "decoded2" you have the DENM */
+
             /* Build your strategy here */
+            m_denm_received++;
+            //xer_fprint (stdout,&asn_DEF_DENM,decoded); //Print what you encoded
+            //std::cout << "DENM in ASN.1 format received!" << std::endl;
+
+            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+            denm_field_t denm;
+            denm.edge_hash = (int)decoded2->denm.management.eventPosition.latitude;
+            denm.pos_on_edge = (double)decoded2->denm.management.eventPosition.longitude;
+            app->receiveDENM (denm);
+
             ASN_STRUCT_FREE(asn_DEF_DENM,decoded2);
           }
         else
@@ -559,7 +596,7 @@ namespace ns3
 
       }
 
-    else
+    else /* Plain text messages */
       {
         std::string s = std::string ((char*) buffer);
         //std::cout << "Packet received by:" << m_id << " - from:" << from << " - content:" << s << std::endl;
@@ -571,19 +608,28 @@ namespace ns3
           }
         if (values[0]=="CAM")
           {
-            //Implement CAM strategy here
+            /* Build your strategy here */
             Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
             cam_field_t cam;
             cam.pos = std::make_pair(std::stod(values[2]),std::stod(values[3]));
             cam.speed = std::stod(values[4]);
             cam.acceleration = std::stod(values[5]);
             cam.angle = std::stod(values[6]);
+
             app->receiveCAM (cam);
             m_cam_received++;
           }
         else if (values[0]=="DENM")
-          m_denm_received++;
-        //Implement DENM strategy here
+          {
+            /* Build your strategy here */
+            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+            denm_field_t denm;
+            denm.edge_hash = std::stoi(values[1]);
+            denm.pos_on_edge = std::stod(values[2]);
+
+            app->receiveDENM (denm);
+            m_denm_received++;
+          }
         else
           std::cout << "Unknown packet received by " << m_id << std::endl;
       }
@@ -591,7 +637,7 @@ namespace ns3
 
   /* This function is used to calculate the delay for packet reception */
   double
-  CAMSender::time_diff(double sec1, double usec1, double sec2, double usec2)
+  CAMDENMSender::time_diff(double sec1, double usec1, double sec2, double usec2)
     {
             double tot1 , tot2 , diff;
             tot1 = sec1 + (usec1 / 1000000000.0);
@@ -601,7 +647,7 @@ namespace ns3
     }
 
   struct timespec
-  CAMSender::compute_timestamp ()
+  CAMDENMSender::compute_timestamp ()
   {
     struct timespec tv;
     if (!m_real_time)
