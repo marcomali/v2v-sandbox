@@ -37,6 +37,7 @@ main (int argc, char *argv[])
   bool sumo_gui = true;
   double sumo_updates = 0.01;
   bool send_cam = true;
+  bool send_denm = true;
   bool asn = false;
   std::string sumo_folder = "src/automotive/examples/sumo-files/";
   std::string mob_trace = "cars.rou.xml";
@@ -71,6 +72,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("sumo-gui", "Use SUMO gui or not", sumo_gui);
   cmd.AddValue ("sumo-updates", "SUMO granularity", sumo_updates);
   cmd.AddValue ("send-cam", "Enable car to send cam", send_cam);
+  cmd.AddValue ("send-denm", "Enable car to send cam", send_denm);
   cmd.AddValue ("sumo-folder","Position of sumo config files",sumo_folder);
   cmd.AddValue ("asn", "Use ASN.1 or plain-text to send message", asn);
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
@@ -122,18 +124,18 @@ main (int argc, char *argv[])
   }
 
   /* Configure for UE selected */
-  Config::SetDefault ("ns3::LteUeMac::UlBandwidth", UintegerValue(slBandwidth));
-  Config::SetDefault ("ns3::LteUeMac::EnableV2xHarq", BooleanValue(harqEnabled));
-  Config::SetDefault ("ns3::LteUeMac::EnableAdjacencyPscchPssch", BooleanValue(adjacencyPscchPssch));
-  Config::SetDefault ("ns3::LteUeMac::EnablePartialSensing", BooleanValue(partialSensing));
-  Config::SetDefault ("ns3::LteUeMac::SlGrantMcs", UintegerValue(mcs));
+  Config::SetDefault ("ns3::LteUeMac::UlBandwidth", UintegerValue (slBandwidth));
+  Config::SetDefault ("ns3::LteUeMac::EnableV2xHarq", BooleanValue (harqEnabled));
+  Config::SetDefault ("ns3::LteUeMac::EnableAdjacencyPscchPssch", BooleanValue (adjacencyPscchPssch));
+  Config::SetDefault ("ns3::LteUeMac::EnablePartialSensing", BooleanValue (partialSensing));
+  Config::SetDefault ("ns3::LteUeMac::SlGrantMcs", UintegerValue (mcs));
   Config::SetDefault ("ns3::LteUeMac::SlSubchannelSize", UintegerValue (sizeSubchannel));
   Config::SetDefault ("ns3::LteUeMac::SlSubchannelNum", UintegerValue (numSubchannel));
   Config::SetDefault ("ns3::LteUeMac::SlStartRbSubchannel", UintegerValue (startRbSubchannel));
-  Config::SetDefault ("ns3::LteUeMac::SlPrsvp", UintegerValue(pRsvp));
-  Config::SetDefault ("ns3::LteUeMac::SlProbResourceKeep", DoubleValue(probResourceKeep));
-  Config::SetDefault ("ns3::LteUeMac::SelectionWindowT1", UintegerValue(t1));
-  Config::SetDefault ("ns3::LteUeMac::SelectionWindowT2", UintegerValue(t2));
+  Config::SetDefault ("ns3::LteUeMac::SlPrsvp", UintegerValue (pRsvp));
+  Config::SetDefault ("ns3::LteUeMac::SlProbResourceKeep", DoubleValue (probResourceKeep));
+  Config::SetDefault ("ns3::LteUeMac::SelectionWindowT1", UintegerValue (t1));
+  Config::SetDefault ("ns3::LteUeMac::SelectionWindowT2", UintegerValue (t2));
 
   ConfigStore inputConfig;
   inputConfig.ConfigureDefaults();
@@ -259,7 +261,7 @@ main (int argc, char *argv[])
   std::vector<uint32_t> groupL2Addresses;
   uint32_t groupL2Address = 0x00;
   std::vector<Ipv4Address> ipAddresses;
-  Ipv4AddressGenerator::Init(Ipv4Address ("225.0.0.0"), Ipv4Mask("255.0.0.0"));
+  Ipv4AddressGenerator::Init(Ipv4Address ("225.0.0.0"), Ipv4Mask ("255.0.0.0"));
   Ipv4Address clientRespondersAddress = Ipv4AddressGenerator::NextAddress (Ipv4Mask ("255.0.0.0"));
   NetDeviceContainer activeTxUes;
 
@@ -316,7 +318,7 @@ main (int argc, char *argv[])
   sumoClient->SetAttribute ("SumoBinaryPath", StringValue (""));    // use system installation of sumo
   sumoClient->SetAttribute ("SynchInterval", TimeValue (Seconds (sumo_updates)));
   sumoClient->SetAttribute ("StartTime", TimeValue (Seconds (0.0)));
-  sumoClient->SetAttribute ("SumoGUI", (BooleanValue) sumo_gui);
+  sumoClient->SetAttribute ("SumoGUI", BooleanValue (sumo_gui));
   sumoClient->SetAttribute ("SumoPort", UintegerValue (3400));
   sumoClient->SetAttribute ("PenetrationRate", DoubleValue (1.0));
   sumoClient->SetAttribute ("SumoLogFile", BooleanValue (false));
@@ -329,18 +331,19 @@ main (int argc, char *argv[])
   CAMSenderHelper CamSenderHelper (9);
   appSampleHelper AppSampleHelper;
 
-  CamSenderHelper.SetAttribute ("Client", PointerValue(sumoClient)); // pass TraciClient object for accessing sumo in application
-  CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
-  CamSenderHelper.SetAttribute ("LonLat", BooleanValue(send_lon_lat));
-  CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
-  CamSenderHelper.SetAttribute ("RealTime", BooleanValue(realtime));
-  CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue(true));
-  CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
-  CamSenderHelper.SetAttribute ("Model", StringValue("cv2x"));
+  CamSenderHelper.SetAttribute ("Client", PointerValue (sumoClient)); // pass TraciClient object for accessing sumo in application
+  CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
+  CamSenderHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
+  CamSenderHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
+  CamSenderHelper.SetAttribute ("RealTime", BooleanValue (realtime));
+  CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue (true));
+  CamSenderHelper.SetAttribute ("ASN", BooleanValue (asn));
+  CamSenderHelper.SetAttribute ("Model", StringValue ("cv2x"));
 
-  AppSampleHelper.SetAttribute ("Client", PointerValue(sumoClient));
-  AppSampleHelper.SetAttribute ("LonLat", BooleanValue(send_lon_lat));
-  AppSampleHelper.SetAttribute ("ASN", BooleanValue(asn));
+  AppSampleHelper.SetAttribute ("Client", PointerValue (sumoClient));
+  AppSampleHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
+  AppSampleHelper.SetAttribute ("ASN", BooleanValue (asn));
+  AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
 
   /* callback function for node creation */
   int i=0;

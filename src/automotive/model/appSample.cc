@@ -48,6 +48,11 @@ namespace ns3
             BooleanValue(false),
             MakeBooleanAccessor (&appSample::m_asn),
             MakeBooleanChecker ())
+        .AddAttribute ("SendDenm",
+            "If true, emergency vehicle broadcast DENMs",
+            BooleanValue(true),
+            MakeBooleanAccessor (&appSample::m_send_denm),
+            MakeBooleanChecker ())
         .AddAttribute ("Client",
             "TraCI client for SUMO",
             PointerValue (0),
@@ -85,9 +90,9 @@ namespace ns3
 
     /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
     std::string my_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
-    if (my_type=="emergency")
+    if (my_type=="emergency" && m_send_denm)
       {
-         Simulator::Schedule (Seconds (1.0), &appSample::sendDENM, this);
+         m_send_denm_ev = Simulator::Schedule (Seconds (1.0), &appSample::sendDENM, this);
       }
 
   }
@@ -96,6 +101,9 @@ namespace ns3
   appSample::StopApplication ()
   {
     NS_LOG_FUNCTION(this);
+    Simulator::Remove(m_change_color);
+    Simulator::Remove(m_send_denm_ev);
+
   }
 
   void
@@ -114,7 +122,11 @@ namespace ns3
     else
       cam_sender_app->Populate_and_send_normal_denm ();
 
-    Simulator::Schedule (Seconds (0.5), &appSample::sendDENM, this);
+    /* DENM are sent every 0.5 s.
+     * IMPORTANT: in a real scenario, DENMs are not periodic, but asynchronous and corresponding to certain events.
+     * In this example, we want just to show the capacity of the framework, to show both CAMs and DENMs v2v dissemination.
+     */
+    m_send_denm_ev = Simulator::Schedule (Seconds (0.5), &appSample::sendDENM, this);
   }
 
   void
@@ -133,14 +145,13 @@ namespace ns3
      * 2) That the DENM is sent by a vehicle that is in the same edge. To do so, the information extracted by m_client->TraCIAPI::vehicle.getRoadID (m_id)
      * is hashed using the function: int my_edge_hash = (int)std::hash<std::string>{}(my_edge)%10000 and included in the DENM. In case of ASN.1 format,
      * it is in the field "latitude", otherwise is the 2nd element. If the vehicle is not in the same edge, do nothing.
-     * 3) In case the vehicle is in the same edge, check if it is already passed. To do so, the information from m_client->TraCIAPI::vehicle.getLanePosition (m_id)
+     * 3) In case that the vehicle is in the same edge, check if it is already passed. To do so, the information from m_client->TraCIAPI::vehicle.getLanePosition (m_id)
      * is included in the DENM. In case of ASN.1 it is in the longitude field. In case it is already passed, do nothing.
      *
-     * If all the control are passed, then the vehicle should slow down by setting its maximum speed to 60% of the original, then it should change lane,
+     * If all the control are passed, then the vehicle should slow down by setting its maximum speed to 50% of the original, then it should change lane,
      * by choosing the "rightmost" (i.e. with index 0), in order to facilitate the emergency vehicle takeover. For visualization purposes, it will change
      * color during this phase.
      */
-
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
     int my_edge_hash = (int)std::hash<std::string>{}(my_edge)%10000;
     double my_edge_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
@@ -151,11 +162,13 @@ namespace ns3
           {
             if (denm.pos_on_edge < my_edge_pos)
               {
-                m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed*0.6, 10);
+                m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed*0.5, 10);
                 m_client->TraCIAPI::vehicle.changeLane (m_id,0,10);
                 libsumo::TraCIColor orange;
                 orange.r=232;orange.g=126;orange.b=4;orange.a=255;
                 m_client->TraCIAPI::vehicle.setColor (m_id,orange);
+
+                Simulator::Remove(m_change_color);
                 m_change_color = Simulator::Schedule (Seconds (10.0), &appSample::ChangeColor, this);
               }
           }

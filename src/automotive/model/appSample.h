@@ -85,9 +85,12 @@ private:
   bool m_lon_lat; //!< Use LonLat instead of XY
   bool m_asn; //!< To decide if ASN.1 is used
   double m_max_speed; //!< To save initial veh max speed
+  bool m_send_denm;
 
 
   EventId m_change_color; //!< Event to change the vehicle color
+  EventId m_send_denm_ev; //!< Event to send the DENM
+
 
 };
 

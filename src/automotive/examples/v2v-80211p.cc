@@ -30,6 +30,7 @@ main (int argc, char *argv[])
   bool sumo_gui = true;
   double sumo_updates = 0.01;
   bool send_cam = true;
+  bool send_denm = true;
   bool asn = false;
   std::string sumo_folder = "src/automotive/examples/sumo-files/";
   std::string mob_trace = "cars.rou.xml";
@@ -49,6 +50,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("sumo-gui", "Use SUMO gui or not", sumo_gui);
   cmd.AddValue ("sumo-updates", "SUMO granularity", sumo_updates);
   cmd.AddValue ("send-cam", "Enable car to send cam", send_cam);
+  cmd.AddValue ("send-denm", "Enable car to send cam", send_denm);
   cmd.AddValue ("sumo-folder","Position of sumo config files",sumo_folder);
   cmd.AddValue ("asn", "Use ASN.1 or plain-text to send message", asn);
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
@@ -96,10 +98,11 @@ main (int argc, char *argv[])
   obuNodes.Create(numberOfNodes);
 
   /*** 2. Create and setup channel   ***/
-  std::string phyMode ("OfdmRate6MbpsBW10MHz");
+  std::string phyMode ("OfdmRate12MbpsBW10MHz");
   YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
-  wifiPhy.Set ("TxPowerStart", DoubleValue (20));
-  wifiPhy.Set ("TxPowerEnd", DoubleValue (20));
+  wifiPhy.Set ("TxPowerStart", DoubleValue (26));
+  wifiPhy.Set ("TxPowerEnd", DoubleValue (26));
+
   YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
   Ptr<YansWifiChannel> channel = wifiChannel.Create ();
   wifiPhy.SetChannel (channel);
@@ -110,6 +113,7 @@ main (int argc, char *argv[])
   Wifi80211pHelper wifi80211p = Wifi80211pHelper::Default ();
   wifi80211p.SetRemoteStationManager ("ns3::ConstantRateWifiManager", "DataMode", StringValue (phyMode), "ControlMode", StringValue (phyMode));
   NetDeviceContainer netDevices = wifi80211p.Install (wifiPhy, wifi80211pMac, obuNodes);
+  //wifiPhy.EnablePcap ("wave-80211p", netDevices);
 
   /*** 4. Create Internet and ipv4 helpers ***/
   InternetStackHelper internet;
@@ -138,7 +142,7 @@ main (int argc, char *argv[])
   sumoClient->SetAttribute ("SumoBinaryPath", StringValue (""));    // use system installation of sumo
   sumoClient->SetAttribute ("SynchInterval", TimeValue (Seconds (sumo_updates)));
   sumoClient->SetAttribute ("StartTime", TimeValue (Seconds (0.0)));
-  sumoClient->SetAttribute ("SumoGUI", (BooleanValue) sumo_gui);
+  sumoClient->SetAttribute ("SumoGUI", BooleanValue (sumo_gui));
   sumoClient->SetAttribute ("SumoPort", UintegerValue (3400));
   sumoClient->SetAttribute ("PenetrationRate", DoubleValue (1.0));
   sumoClient->SetAttribute ("SumoLogFile", BooleanValue (false));
@@ -151,18 +155,19 @@ main (int argc, char *argv[])
   CAMSenderHelper CamSenderHelper (9);
   appSampleHelper AppSampleHelper;
 
-  CamSenderHelper.SetAttribute ("Client", (PointerValue) sumoClient); // pass TraciClient object for accessing sumo in application
-  CamSenderHelper.SetAttribute ("LonLat", (BooleanValue) send_lon_lat);
-  CamSenderHelper.SetAttribute ("ASN", BooleanValue(asn));
-  CamSenderHelper.SetAttribute ("SendCam", BooleanValue(send_cam));
-  CamSenderHelper.SetAttribute ("RealTime", BooleanValue(realtime));
-  CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue(true));
-  CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue(cam_intertime));
-  CamSenderHelper.SetAttribute ("Model", StringValue("80211p"));
+  CamSenderHelper.SetAttribute ("Client", PointerValue (sumoClient)); // pass TraciClient object for accessing sumo in application
+  CamSenderHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
+  CamSenderHelper.SetAttribute ("ASN", BooleanValue (asn));
+  CamSenderHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
+  CamSenderHelper.SetAttribute ("RealTime", BooleanValue (realtime));
+  CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue (true));
+  CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
+  CamSenderHelper.SetAttribute ("Model", StringValue ("80211p"));
 
-  AppSampleHelper.SetAttribute ("Client", (PointerValue) sumoClient);
-  AppSampleHelper.SetAttribute ("LonLat", (BooleanValue) send_lon_lat);
-  AppSampleHelper.SetAttribute ("ASN", BooleanValue(asn));
+  AppSampleHelper.SetAttribute ("Client", PointerValue (sumoClient));
+  AppSampleHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
+  AppSampleHelper.SetAttribute ("ASN", BooleanValue (asn));
+  AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
 
   /* callback function for node creation */
   std::function<Ptr<Node> ()> setupNewWifiNode = [&] () -> Ptr<Node>
@@ -175,7 +180,6 @@ main (int argc, char *argv[])
 
       /* Install Application */
       CamSenderHelper.SetAttribute ("Index", IntegerValue(nodeCounter));
-
 
       ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
       ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
