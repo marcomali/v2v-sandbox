@@ -9,7 +9,7 @@ typedef struct cam_field_t
   std::pair<double,double> pos;
   double speed;
   double acceleration;
-  double angle;
+  int angle;
 } m_cam_field;
 
 typedef struct denm_field_t

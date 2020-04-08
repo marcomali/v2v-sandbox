@@ -32,7 +32,8 @@ typedef enum StationType {
 	StationType_trailer	= 9,
 	StationType_specialVehicles	= 10,
 	StationType_tram	= 11,
-	StationType_roadSideUnit	= 15
+	StationType_roadSideUnit	= 15,
+	StationType_emergency	  =16
 } e_StationType;
 
 /* StationType */

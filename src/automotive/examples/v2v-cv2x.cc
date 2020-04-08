@@ -99,7 +99,7 @@ main (int argc, char *argv[])
   if (verbose)
     {
       LogComponentEnable ("v2v-cv2x-sandbox", LOG_LEVEL_INFO);
-      LogComponentEnable ("v2v-CAM-sender", LOG_LEVEL_INFO);
+      LogComponentEnable ("v2v-CAM-DENM-sender", LOG_LEVEL_INFO);
     }
 
   /*** 0.c V2X Configurations ***/

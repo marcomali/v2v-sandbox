@@ -65,7 +65,7 @@ main (int argc, char *argv[])
   if (verbose)
     {
       LogComponentEnable ("v2v-80211p", LOG_LEVEL_INFO);
-      LogComponentEnable ("v2v-CAM-sender", LOG_LEVEL_INFO);
+      LogComponentEnable ("v2v-CAM-DENM-sender", LOG_LEVEL_INFO);
     }
 
   /* Use the realtime scheduler of ns3 */

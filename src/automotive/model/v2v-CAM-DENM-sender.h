@@ -10,34 +10,30 @@
 #include "ns3/ipv4-address.h"
 #include "ns3/traced-callback.h"
 #include "ns3/appSample.h"
+#include <chrono>
 
 #define SPEED_OF_LIGHT      299792458.0
 #define OFFSET_X            0
 #define OFFSET_Y            0
 
-//CAM utils
+//ASN.1 utils
 #define FIX_PROT_VERS       1
 #define FIX_DENMID          1
 #define FIX_CAMID           2
-#define DEF_YAWRATE         32767
-#define FIX_YAWRATE_CONF    2
-#define DEF_YAWRATE_CONF    8
-#define FIX2D               1
 #define DEF_LATITUDE        90000001
 #define DEF_LONGITUDE       1800000001
+#define DEF_LENGTH          1022
+#define DEF_WIDTH           62
 #define DEF_SPEED           16383
-#define DEF_SPEED_CONF      127
-#define FIX_SPEED_CONF      1
 #define DEF_ACCELERATION    161
-#define DEF_ACCEL_CONF      102
-#define FIX_ACCEL_CONF      1
-#define DEF_HEADING_CONF    127
 #define DEF_HEADING         3601
-
-//unit measure CAM
+#define DECI                10
 #define CENTI               100
-#define DOT_ONE_MICRO       10000000
 #define MICRO               1000000
+#define DOT_ONE_MICRO       10000000
+
+//Epoch time at 2004-01-01
+#define TIME_SHIFT 1072915200000
 
 namespace ns3 {
 
@@ -111,6 +107,11 @@ private:
   */
   struct timespec compute_timestamp();
 
+  /**
+   * @brief This function compute the milliseconds elapsed from 2004-01-01
+  */
+  long compute_timestampIts ();
+
   Ptr<Socket> m_socket; //!< Socket TX
   Ptr<Socket> m_socket2; //!< Socket RX
   uint16_t m_port;  //!< Port on which client will listen for traffic information
@@ -132,14 +133,11 @@ private:
   int m_cam_received;
   int m_denm_received;
 
-  u_int16_t m_cam_seq; //!< CAM sequence
-
   int m_index;  //!< vehicle index
   std::string m_id; //!< vehicle id
+  std::string m_type; //!< vehicle type
   std::string m_veh_prefix; //!< prefix used in SUMO
   std::string m_model; //!< Communication Model (possible values: 80211p and cv2x
-
-  long long m_start_ms; //!< To save the base time of simulation*/
 
   EventId m_sendCamEvent; //!< Event to send the CAM
 
