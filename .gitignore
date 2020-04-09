@@ -88,3 +88,5 @@ src/test/
 src/csma-layout/        
 src/netanim/         
 src/topology-read/ 
+
+gitignorer.sh
