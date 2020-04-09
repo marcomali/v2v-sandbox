@@ -45,7 +45,7 @@ fcd.xml
 simulation_log.txt
 summary.csv
 
-src/antenna           
+src/antenna/*          
 src/dsdv           
 src/network                
 src/aodv              
