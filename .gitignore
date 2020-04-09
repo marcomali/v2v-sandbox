@@ -44,3 +44,8 @@ error-log.csv
 fcd.xml
 simulation_log.txt
 summary.csv
+
+!src/automotive
+!src/traci
+!src/traci-applications
+!src/lte

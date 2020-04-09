@@ -34,10 +34,10 @@
  *   gnuplot 80211b.plt
  */
 
-#include <gsl/gsl_math.h>
-#include <gsl/gsl_integration.h>
-#include <gsl/gsl_cdf.h>
-#include <gsl/gsl_sf_bessel.h>
+#include "gsl/gsl_math.h"
+#include "gsl/gsl_integration.h"
+#include "gsl/gsl_cdf.h"
+#include "gsl/gsl_sf_bessel.h"
 
 #define min(a,b) ((a) < (b) ? (a) : (b))
 #define max(a,b) ((a) > (b) ? (a) : (b))

@@ -4042,13 +4042,16 @@ LteUeMac::DoSubframeIndication (uint32_t frameNo, uint32_t subframeNo)
 						reTxInfo = reTxOppsIt->m_txInfo;
 						grant.m_sfGap = reTxOppsIt->m_sfGap;
 						grant.m_reTxIdx = reTxOppsIt->m_reTxIdx; 
+						grant.m_riv = CalcRiv(m_subchLen, std::floor(reTxInfo.rbStart/m_sizeSubchannel));
+
 					}
 					else 
 					{
 						grant.m_sfGap = 0;
-						grant.m_reTxIdx = 0; 	
+						grant.m_reTxIdx = 0; 
+						grant.m_riv = CalcRiv(m_subchLen,0);	
 					}
-					grant.m_riv = CalcRiv(m_subchLen, std::floor(reTxInfo.rbStart/m_sizeSubchannel));
+
 				}
 				else 
 				{

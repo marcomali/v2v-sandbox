@@ -202,6 +202,8 @@ LteTestRrc::Start ()
   LtePdcpSapProvider::TransmitPdcpSduParameters p;
   p.rnti = 1111;
   p.lcid = 222;
+  p.srcL2Id = 0;
+  p.dstL2Id = 0;
   p.pdcpSdu = Create<Packet> (m_pduSize);
   
   bool haveContext = false;
@@ -246,6 +248,8 @@ LteTestRrc::SendData (Time at, std::string dataToSend)
   LtePdcpSapProvider::TransmitPdcpSduParameters p;
   p.rnti = 1111;
   p.lcid = 222;
+  p.srcL2Id = 0;
+  p.dstL2Id = 0;
 
   NS_LOG_LOGIC ("Data(" << dataToSend.length () << ") = " << dataToSend.data ());
   p.pdcpSdu = Create<Packet> ((uint8_t *) dataToSend.data (), dataToSend.length ());
@@ -346,6 +350,8 @@ LteTestPdcp::SendData (Time time, std::string dataToSend)
   LteRlcSapProvider::TransmitPdcpPduParameters p;
   p.rnti = 1111;
   p.lcid = 222;
+  p.srcL2Id = 0;
+  p.dstL2Id = 0;
 
   NS_LOG_LOGIC ("Data(" << dataToSend.length () << ") = " << dataToSend.data ());
   p.pdcpPdu = Create<Packet> ((uint8_t *) dataToSend.data (), dataToSend.length ());

@@ -351,8 +351,8 @@ UdpEchoClient::Send (void)
 
   if (Ipv4Address::IsMatchingType (m_peerAddress))
     {
-      NS_LOG_INFO ("At time " << Simulator::Now ().GetSeconds () << "s client sent " << m_size << " bytes to " <<
-                   Ipv4Address::ConvertFrom (m_peerAddress) << " port " << m_peerPort);
+      std::cout << "At time " << Simulator::Now ().GetSeconds () << "s client sent " << m_size << " bytes to " <<
+                   Ipv4Address::ConvertFrom (m_peerAddress) << " port " << m_peerPort << std::endl;
     }
   else if (Ipv6Address::IsMatchingType (m_peerAddress))
     {

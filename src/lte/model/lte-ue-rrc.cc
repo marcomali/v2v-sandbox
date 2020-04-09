@@ -955,6 +955,9 @@ LteUeRrc::DoSendData (Ptr<Packet> packet, uint8_t bid)
   params.pdcpSdu = packet;
   params.rnti = m_rnti;
   params.lcid = it->second->m_logicalChannelIdentity;
+  params.dstL2Id = 0;
+  params.srcL2Id = 0;
+
 
   NS_LOG_LOGIC (this << " RNTI=" << m_rnti << " sending packet " << packet
                      << " on DRBID " << (uint32_t) drbid
@@ -976,7 +979,9 @@ LteUeRrc::DoSendSidelinkData (Ptr<Packet> packet, uint32_t group)
   params.pdcpSdu = packet;
   params.rnti = m_rnti;
   params.lcid = slrb->m_logicalChannelIdentity;
-
+  params.dstL2Id = 0;
+  params.srcL2Id = 0;
+  
   NS_LOG_LOGIC (this << " RNTI=" << m_rnti << " sending packet " << packet
                      << " on SLRBBID " << (uint32_t) group
                      << " (LCID " << (uint32_t) params.lcid << ")"

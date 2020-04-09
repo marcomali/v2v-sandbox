@@ -1415,9 +1415,9 @@ namespace ns3 {
   SidelinkCommResourcePoolV2x::GetValsFromRiv(uint8_t riv)
   {
     uint16_t numSubchannel = LteRrcSap::numSubchannelAsInt(m_numSubchannel); // Number of subchannels per subframe
-    uint8_t *ptr; 
-    uint8_t vals[2]; // vals[0] := L_subCH, vals[1] := startSubchannelIdx
-    ptr = vals; 
+    //uint8_t *vals = (uint8_t*)malloc(2*sizeof(uint8_t));
+    uint8_t *vals = new uint8_t[2];
+    //uint8_t vals[2]; // vals[0] := L_subCH, vals[1] := startSubchannelIdx
 
     for(uint16_t n=1; n<=numSubchannel;n++)
     {
@@ -1441,7 +1441,7 @@ namespace ns3 {
           } 
       } 
     }
-    return ptr; 
+    return vals; 
   }
 
   uint16_t 

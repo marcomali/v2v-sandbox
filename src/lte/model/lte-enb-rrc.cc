@@ -872,6 +872,9 @@ UeManager::SendData (uint8_t bid, Ptr<Packet> p)
         params.pdcpSdu = p;
         params.rnti = m_rnti;
         params.lcid = Bid2Lcid (bid);
+        params.srcL2Id = 0;
+        params.dstL2Id = 0;
+
         uint8_t drbid = Bid2Drbid (bid);
         //Transmit PDCP sdu only if DRB ID found in drbMap
         std::map<uint8_t, Ptr<LteDataRadioBearerInfo> >::iterator it = m_drbMap.find (drbid);
