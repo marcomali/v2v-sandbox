@@ -2,7 +2,7 @@
 
 ns3 modules to build a simple V2V application using SUMO (v-1.5.0) and ns-3 (v-3.29).
 
-It has been tested with SUMO v1.2.0 and ns3 v3.28 on Ubuntu 18.04.
+It has been tested with SUMO v1.2.0 and ns3 v3.29 on Ubuntu 18.04.
 Back compatibility **is not** ensured with new versions of TraCI.
 
 To build the project:
@@ -15,7 +15,7 @@ To build the project:
 
 * Clone this repository in your pc.
     
-* Configure waf to build the new modules with "<ns3-folder>./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo" (add here what you want to enable) - The usage of the optimized profile allows to speed up the simulation time
+* Configure waf to build the new modules with "<ns3-folder>./waf configure --build-profile=optimized --enable-examples --enable-tests" (add here what you want to enable) - The usage of the optimized profile allows to speed up the simulation time
 
 * Build ns3
 
@@ -83,7 +83,7 @@ For visualization puproses, in SUMO normal vehicles are shown as yellow cars, wh
 
 **IMPORTANT**
 Sometimes it may happen that in build phase you have some "Warning threated as error". To remove that, configure the project using:
-
 `CXXFLAGS="-Wall" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`
-
 and then build again
+
+In this version LTE python bindings are disabled!
