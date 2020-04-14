@@ -17,11 +17,13 @@
 
  * Edited by Marco Malinverno, Politecnico di Torino (marco.malinverno@polito.it)
 */
-#include <errno.h>
-
 #include "appSample.h"
-#include "v2v-CAM-DENM-sender.h"
-#include <unordered_map>
+
+extern "C"
+{
+  #include "asn1/CAM.h"
+  #include "asn1/DENM.h"
+}
 
 namespace ns3
 {
@@ -29,6 +31,14 @@ namespace ns3
   NS_LOG_COMPONENT_DEFINE("appSample");
 
   NS_OBJECT_ENSURE_REGISTERED(appSample);
+
+  long retValue(double value, int defValue, int fix, int fixNeeded)
+  {
+      if(fix<fixNeeded)
+          return defValue;
+      else
+          return value;
+  }
 
   TypeId
   appSample::GetTypeId (void)
@@ -43,15 +53,40 @@ namespace ns3
             BooleanValue (false),
             MakeBooleanAccessor (&appSample::m_lon_lat),
             MakeBooleanChecker ())
+        .AddAttribute ("CAMIntertime",
+            "Time between two consecutive CAMs",
+            DoubleValue(0.1),
+            MakeDoubleAccessor (&appSample::m_cam_intertime),
+            MakeDoubleChecker<double> ())
+        .AddAttribute ("RealTime",
+            "To compute properly timestamps",
+            BooleanValue(false),
+            MakeBooleanAccessor (&appSample::m_real_time),
+            MakeBooleanChecker ())
+        .AddAttribute ("DENMIntertime",
+            "Time between two consecutive DENMs",
+            DoubleValue(0.5),
+            MakeDoubleAccessor (&appSample::m_denm_intertime),
+            MakeDoubleChecker<double> ())
         .AddAttribute ("ASN",
             "If true, it uses ASN.1 to encode and decode CAMs and DENMs",
             BooleanValue(false),
             MakeBooleanAccessor (&appSample::m_asn),
             MakeBooleanChecker ())
+        .AddAttribute ("SendCam",
+            "If it is true, the branch sending the CAM is activated.",
+            BooleanValue (true),
+            MakeBooleanAccessor (&appSample::m_send_cam),
+            MakeBooleanChecker ())
         .AddAttribute ("SendDenm",
             "If true, emergency vehicle broadcast DENMs",
             BooleanValue(true),
             MakeBooleanAccessor (&appSample::m_send_denm),
+            MakeBooleanChecker ())
+        .AddAttribute ("PrintSummary",
+            "To print summary at the end of simulation",
+            BooleanValue(false),
+            MakeBooleanAccessor (&appSample::m_print_summary),
             MakeBooleanChecker ())
         .AddAttribute ("Client",
             "TraCI client for SUMO",
@@ -65,6 +100,13 @@ namespace ns3
   {
     NS_LOG_FUNCTION(this);
     m_client = nullptr;
+    m_print_summary = true;
+    m_already_print = false;
+
+    m_cam_sent = 0;
+    m_denm_sent = 0;
+    m_cam_received = 0;
+    m_denm_received = 0;
   }
 
   appSample::~appSample ()
@@ -85,16 +127,20 @@ namespace ns3
     NS_LOG_FUNCTION(this);
     /* Save the vehicles informations */
     m_id = m_client->GetVehicleId (this->GetNode ());
+
     m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
     m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
+
+    /* Schedule CAM dissemination */
+    if (m_send_cam)
+       m_send_cam_ev = Simulator::Schedule (Seconds (m_cam_intertime), &appSample::TriggerCam, this);
 
     /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
     std::string my_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
     if (my_type=="emergency" && m_send_denm)
       {
-         m_send_denm_ev = Simulator::Schedule (Seconds (1.0), &appSample::sendDENM, this);
+         m_send_denm_ev = Simulator::Schedule (Seconds (1.0), &appSample::TriggerDenm, this);
       }
-
   }
 
   void
@@ -103,7 +149,18 @@ namespace ns3
     NS_LOG_FUNCTION(this);
     Simulator::Remove(m_change_color);
     Simulator::Remove(m_send_denm_ev);
+    Simulator::Remove(m_send_cam_ev);
 
+    if (m_print_summary && !m_already_print)
+      {
+        std::cout << "INFO-" << m_id
+                  << ",DENM-SENT:" << m_denm_sent
+                  << ",CAM-SENT:" << m_cam_sent
+                  << ",DENM-RECEIVED:" << m_denm_received
+                  << ",CAM-RECEIVED:" << m_cam_received
+                  << std::endl;
+        m_already_print=true;
+      }
   }
 
   void
@@ -114,30 +171,139 @@ namespace ns3
   }
 
   void
-  appSample::sendDENM()
+  appSample::TriggerDenm ()
   {
-    Ptr<CAMDENMSender> cam_sender_app = GetNode()->GetApplication (0)->GetObject<CAMDENMSender> ();
-    if (m_asn)
-      cam_sender_app->Populate_and_send_asn_denm ();
+    /* Build DENM data */
+    /* FIX: implement other containers, and use them!! */
+    long timestamp;
+    if(m_real_time)
+      {
+        timestamp = appSample::compute_timestampIts ()%65536;
+      }
     else
-      cam_sender_app->Populate_and_send_normal_denm ();
+      {
+        struct timespec tv = compute_timestamp ();
+        timestamp = (tv.tv_nsec/1000000)%65536;
+      }
 
-    /* DENM are sent every 0.5 s.
-     * IMPORTANT: in a real scenario, DENMs are not periodic, but asynchronous and corresponding to certain events.
-     * In this example, we want just to show the capacity of the framework, to show both CAMs and DENMs v2v dissemination.
-     */
-    m_send_denm_ev = Simulator::Schedule (Seconds (0.5), &appSample::sendDENM, this);
+    den_data_t denm;
+    denm.detectiontime = timestamp;
+    denm.messageid = FIX_DENMID;
+    denm.proto = FIX_PROT_VERS;
+
+    /* Station Type */
+    if (m_type=="passenger")
+      denm.stationtype = StationType_passengerCar;
+    else if (m_type=="emergency")
+      denm.stationtype = StationType_emergency;
+    else
+      denm.stationtype = StationType_unknown;
+
+    /* In order to encode the info about the edge, the string containing the edgeId is hashed and placed inside latitude
+     * This is not allowed from ETSI (of course..) but we needed a way to transmit those infos in a DENM */
+    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+    long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
+    long my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
+    denm.evpos_lat = my_edge_hash;    denm.evpos_long = my_pos_on_edge;
+    denm.validity = 10; // seconds
+
+    Ptr<CAMDENMSender> app = GetNode()->GetApplication (0)->GetObject<CAMDENMSender> ();
+    int app_ret = app->SendDenm(denm);
+
+    if (app_ret)
+      m_denm_sent++;
+
+    m_send_denm_ev = Simulator::Schedule (Seconds (0.5), &appSample::TriggerDenm, this);
   }
 
   void
-  appSample::receiveCAM (cam_field_t cam)
+  appSample::TriggerCam()
+  {
+    /* Build CAM data */
+    ca_data_t cam;
+
+    /* Generation delta time [ms since 2004-01-01]. In case the scheduler is not real time, we have to use simulation time,
+     * otherwise timestamps will be not reliable */
+    long timestamp;
+    if(m_real_time)
+      {
+        timestamp = compute_timestampIts ()%65536;
+      }
+    else
+      {
+        struct timespec tv = compute_timestamp ();
+        timestamp = (tv.tv_nsec/1000000)%65536;
+      }
+    cam.timestamp = timestamp;
+
+    /* Station Type */
+    if (m_type=="passenger")
+      cam.type = StationType_passengerCar;
+    else if (m_type=="emergency")
+      cam.type = StationType_emergency;
+    else
+      cam.type = StationType_unknown;
+
+    /* Positions - the standard is followed only if m_lonlat is true */
+    libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
+    if (m_lon_lat)
+        pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
+
+    //altitude [0,01 m]
+    cam.altitude_conf = AltitudeConfidence_unavailable;
+    cam.altitude_value = AltitudeValue_unavailable;
+    //latitude WGS84 [0,1 microdegree]
+    cam.latitude = (long)retValue(pos.y*DOT_ONE_MICRO,DEF_LATITUDE,0,0);
+    //longitude WGS84 [0,1 microdegree]
+    cam.longitude = (long)retValue(pos.x*DOT_ONE_MICRO,DEF_LONGITUDE,0,0);
+
+    /* Heading WGS84 north [0.1 degree] */
+    double angle = m_client->TraCIAPI::vehicle.getAngle (m_id);
+    cam.heading_value = (double)retValue (angle*DECI,DEF_HEADING,0,0);
+    cam.heading_conf = HeadingConfidence_unavailable;
+
+    /* Speed [0.01 m/s] */
+    double speed=m_client->TraCIAPI::vehicle.getSpeed(m_id);
+    cam.speed_value = (long)retValue(speed*CENTI,DEF_SPEED,0,0);
+    cam.speed_conf = SpeedConfidence_unavailable;
+
+    /* Acceleration [0.1 m/s^2] */
+    double acc=m_client->TraCIAPI::vehicle.getAcceleration (m_id);
+    cam.longAcc_value = (long)retValue(acc*DECI,DEF_ACCELERATION,0,0);
+    cam.longAcc_conf = AccelerationConfidence_unavailable;
+
+    /* Length and width of car [0.1 m] */
+    double veh_length = m_client->TraCIAPI::vehicle.getLength (m_id);
+    cam.length_value = (double)retValue (veh_length*DECI,DEF_LENGTH,0,0);
+    cam.length_conf = VehicleLengthConfidenceIndication_unavailable;
+    double veh_width = m_client->TraCIAPI::vehicle.getWidth (m_id);
+    cam.width = (long)retValue (veh_width*DECI,DEF_WIDTH,0,0);
+
+    /* Proto version, id and msg id */
+    cam.proto = FIX_PROT_VERS;
+    cam.id = std::stol (m_id.substr (3));
+    cam.messageid = FIX_CAMID;
+
+    Ptr<CAMDENMSender> app = GetNode()->GetApplication (0)->GetObject<CAMDENMSender> ();
+    app->SendCam (cam);
+
+    m_cam_sent++;
+
+    m_send_cam_ev = Simulator::Schedule (Seconds (m_cam_intertime), &appSample::TriggerCam, this);
+  }
+
+  void
+  appSample::receiveCAM (ca_data_t cam)
   {
     /* Implement CAM strategy here */
+   m_cam_received++;
+
   }
 
   void
-  appSample::receiveDENM (denm_field_t denm)
+  appSample::receiveDENM (den_data_t denm)
   {
+    m_denm_received++;
     /* Implement DENM strategy here */
 
     /* In this case the vehicle that receives a DENM should check:
@@ -153,23 +319,27 @@ namespace ns3
      * color during this phase.
      */
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    int my_edge_hash = (int)std::hash<std::string>{}(my_edge)%10000;
-    double my_edge_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
+    long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
+    long my_edge_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
 
     if (m_type!="emergency")
       {
-        if (my_edge_hash == denm.edge_hash)
+        if (denm.evpos_lat == my_edge_hash)
           {
-            if (denm.pos_on_edge < my_edge_pos)
+            if (denm.evpos_long < my_edge_pos)
               {
-                m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed*0.5, 10);
-                m_client->TraCIAPI::vehicle.changeLane (m_id,0,10);
+                m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
+                /* Slowdown only if you are not in the takeover lane,
+                 * otherwise the ambulance may be stuck behind */
+                if (m_client->TraCIAPI::vehicle.getLaneIndex (m_id) == 0)
+                  m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed*0.5, 3);
+
                 libsumo::TraCIColor orange;
                 orange.r=232;orange.g=126;orange.b=4;orange.a=255;
                 m_client->TraCIAPI::vehicle.setColor (m_id,orange);
 
                 Simulator::Remove(m_change_color);
-                m_change_color = Simulator::Schedule (Seconds (10.0), &appSample::ChangeColor, this);
+                m_change_color = Simulator::Schedule (Seconds (3.0), &appSample::ChangeColor, this);
               }
           }
       }
@@ -181,6 +351,35 @@ namespace ns3
     libsumo::TraCIColor normal;
     normal.r=255;normal.g=255;normal.b=0;normal.a=255;
     m_client->TraCIAPI::vehicle.setColor (m_id, normal);
+  }
+
+  struct timespec
+  appSample::compute_timestamp ()
+  {
+    struct timespec tv;
+    if (!m_real_time)
+      {
+        double nanosec =  Simulator::Now ().GetNanoSeconds ();
+        tv.tv_sec = 0;
+        tv.tv_nsec = nanosec;
+      }
+    else
+      {
+        clock_gettime (CLOCK_MONOTONIC, &tv);
+      }
+    return tv;
+  }
+
+  long
+  appSample::compute_timestampIts ()
+  {
+    /* To get millisec since  2004-01-01T00:00:00:000Z */
+    auto time = std::chrono::system_clock::now(); // get the current time
+    auto since_epoch = time.time_since_epoch(); // get the duration since epoch
+    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch); // convert it in millisecond since epoch
+
+    long elapsed_since_2004 = millis.count() - TIME_SHIFT; // in TIME_SHIFT we saved the millisec from epoch to 2004-01-01
+    return elapsed_since_2004;
   }
 }
 

@@ -155,19 +155,17 @@ main (int argc, char *argv[])
   CAMSenderHelper CamSenderHelper (9);
   appSampleHelper AppSampleHelper;
 
-  CamSenderHelper.SetAttribute ("Client", PointerValue (sumoClient)); // pass TraciClient object for accessing sumo in application
-  CamSenderHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
   CamSenderHelper.SetAttribute ("ASN", BooleanValue (asn));
-  CamSenderHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
   CamSenderHelper.SetAttribute ("RealTime", BooleanValue (realtime));
-  CamSenderHelper.SetAttribute ("PrintSummary", BooleanValue (true));
-  CamSenderHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   CamSenderHelper.SetAttribute ("Model", StringValue ("80211p"));
 
   AppSampleHelper.SetAttribute ("Client", PointerValue (sumoClient));
   AppSampleHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
   AppSampleHelper.SetAttribute ("ASN", BooleanValue (asn));
   AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
+  AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
+  AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
+  AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
 
   /* callback function for node creation */
   std::function<Ptr<Node> ()> setupNewWifiNode = [&] () -> Ptr<Node>
@@ -179,8 +177,6 @@ main (int argc, char *argv[])
       ++nodeCounter; // increment counter for next node
 
       /* Install Application */
-      CamSenderHelper.SetAttribute ("Index", IntegerValue(nodeCounter));
-
       ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
       ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
 

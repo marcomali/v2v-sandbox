@@ -17,23 +17,6 @@
 
  * Edited by Marco Malinverno, Politecnico di Torino (marco.malinverno@polito.it)
 */
-#include "ns3/pointer.h"
-#include "ns3/log.h"
-#include "ns3/ipv4.h"
-#include "ns3/nstime.h"
-#include "ns3/inet-socket-address.h"
-#include "ns3/udp-socket-factory.h"
-#include "ns3/socket.h"
-#include "ns3/simulator.h"
-#include "ns3/packet.h"
-#include "ns3/uinteger.h"
-#include <string>
-#include <stdlib.h>
-#include <algorithm>
-#include <sys/time.h>
-#include <sys/types.h>
-
-#include <errno.h>
 
 #include "v2v-CAM-DENM-sender.h"
 
@@ -50,22 +33,6 @@ namespace ns3
 
   NS_OBJECT_ENSURE_REGISTERED(CAMDENMSender);
 
-  long setConfidence(double confidence, const int defConfidence, double value, const int defValue)
-  {
-      if(value==defValue)
-          return defConfidence;
-      else
-          return confidence;
-  }
-
-  long retValue(double value, int defValue, int fix, int fixNeeded)
-  {
-      if(fix<fixNeeded)
-          return defValue;
-      else
-          return value;
-  }
-
   TypeId
   CAMDENMSender::GetTypeId (void)
   {
@@ -79,56 +46,21 @@ namespace ns3
             UintegerValue (9),
             MakeUintegerAccessor (&CAMDENMSender::m_port),
             MakeUintegerChecker<uint16_t> ())
-        .AddAttribute ("NodePrefix",
-            "The prefix used to idefy vehicles in SUMO.",
-            StringValue ("veh"),
-            MakeStringAccessor (&CAMDENMSender::m_veh_prefix),
-            MakeStringChecker ())
         .AddAttribute ("IpAddr",
             "IpAddr",
             Ipv4AddressValue ("10.0.0.1"),
             MakeIpv4AddressAccessor (&CAMDENMSender::m_ipAddress),
             MakeIpv4AddressChecker ())
-        .AddAttribute ("Client",
-            "TraCI client for SUMO",
-            PointerValue (0),
-            MakePointerAccessor (&CAMDENMSender::m_client),
-            MakePointerChecker<TraciClient> ())
-        .AddAttribute ("Index",
-            "Index of the current node",
-            IntegerValue (1),
-            MakeIntegerAccessor (&CAMDENMSender::m_index),
-            MakeIntegerChecker<int> ())
-        .AddAttribute ("SendCam",
-            "If it is true, the branch sending the CAM is activated.",
-            BooleanValue (true),
-            MakeBooleanAccessor (&CAMDENMSender::m_send_cam),
-            MakeBooleanChecker ())
-        .AddAttribute ("LonLat",
-            "If it is true, position are sent through lonlat (not XY).",
-            BooleanValue (false),
-            MakeBooleanAccessor (&CAMDENMSender::m_lon_lat),
-            MakeBooleanChecker ())
         .AddAttribute ("RealTime",
             "To compute properly timestamps",
             BooleanValue(false),
             MakeBooleanAccessor (&CAMDENMSender::m_real_time),
-            MakeBooleanChecker ())
-        .AddAttribute ("PrintSummary",
-            "To print summary at the end of simulation",
-            BooleanValue(false),
-            MakeBooleanAccessor (&CAMDENMSender::m_print_summary),
             MakeBooleanChecker ())
         .AddAttribute ("ServerAddr",
             "Ip Addr of the server",
             StringValue("10.0.0.1"),
             MakeStringAccessor (&CAMDENMSender::m_server_addr),
             MakeStringChecker ())
-        .AddAttribute ("CAMIntertime",
-            "Time between two consecutive CAMs",
-            DoubleValue(0.1),
-            MakeDoubleAccessor (&CAMDENMSender::m_cam_intertime),
-            MakeDoubleChecker<double> ())
         .AddAttribute ("Model",
             "The prefix used to idefy vehicles in SUMO.",
             StringValue (""),
@@ -139,7 +71,6 @@ namespace ns3
             BooleanValue(false),
             MakeBooleanAccessor (&CAMDENMSender::m_asn),
             MakeBooleanChecker ());
-
         return tid;
   }
 
@@ -148,14 +79,8 @@ namespace ns3
     NS_LOG_FUNCTION(this);
     m_socket = 0;
     m_port = 0;
-    m_client = nullptr;
-    m_veh_prefix = "veh";
-    m_cam_sent = 0;
-    m_denm_sent = 0;
-    m_cam_received = 0;
-    m_denm_received = 0;
-    m_print_summary = true;
-    m_already_print = false;
+    m_sequence = 0;
+    m_actionId = 0;
   }
 
   CAMDENMSender::~CAMDENMSender ()
@@ -176,7 +101,6 @@ namespace ns3
   CAMDENMSender::StartApplication (void)
   {
     NS_LOG_FUNCTION(this);
-    RngSeedManager::SetSeed (m_index+1);
 
     // Create the UDP sockets for the client
     // m_socket -> tx
@@ -204,13 +128,6 @@ namespace ns3
       }
     // Make the callback to handle received packets
     m_socket2->SetRecvCallback (MakeCallback (&CAMDENMSender::HandleRead, this));
-
-    m_id = m_client->GetVehicleId (this->GetNode ());
-    m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
-
-    // Schedule CAM dissemination
-    if (m_send_cam)
-       m_sendCamEvent = Simulator::Schedule (Seconds (1.0), &CAMDENMSender::SendCam, this);
   }
 
   void
@@ -230,18 +147,6 @@ namespace ns3
         m_socket2->SetRecvCallback (MakeNullCallback<void, Ptr<Socket> > ());
         m_socket2 = 0;
       }
-    Simulator::Remove(m_sendCamEvent);
-
-    if (m_print_summary && !m_already_print)
-      {
-        std::cout << "INFO-" << m_id
-                  << ",DENM-SENT:" << m_denm_sent
-                  << ",CAM-SENT:" << m_cam_sent
-                  << ",DENM-RECEIVED:" << m_denm_received
-                  << ",CAM-RECEIVED:" << m_cam_received
-                  << std::endl;
-        m_already_print=true;
-      }
   }
 
   void
@@ -252,71 +157,49 @@ namespace ns3
   }
 
   void
-  CAMDENMSender::SendCam()
+  CAMDENMSender::SendCam(ca_data_t cam)
   {
-    /*DEBUG: Print position*/
-    //Ptr<MobilityModel> mob = this->GetNode ()->GetObject<MobilityModel> ();
-    //std::cout << "x:" << mob->GetPosition ().x << std::endl;
-    //std::cout << "y:" << mob->GetPosition ().y << std::endl;
-    //std::cout << "x_sumo:" << m_client->TraCIAPI::vehicle.getPosition (m_id).x<< std::endl;
-    //std::cout << "y_sumo:" << m_client->TraCIAPI::vehicle.getPosition (m_id).y << std::endl;
-
     if (m_asn)
-      CAMDENMSender::Populate_and_send_asn_cam();
+      CAMDENMSender::Populate_and_send_asn_cam(cam);
     else
-      CAMDENMSender::Populate_and_send_normal_cam();
+      CAMDENMSender::Populate_and_send_normal_cam(cam);
+  }
 
-    // Schedule next CAM
-    m_sendCamEvent = Simulator::Schedule (Seconds (m_cam_intertime), &CAMDENMSender::SendCam, this);
+  int CAMDENMSender::SendDenm(den_data_t denm)
+  {
+    if (m_asn)
+      return CAMDENMSender::Populate_and_send_asn_denm(denm);
+    else
+      return CAMDENMSender::Populate_and_send_normal_denm(denm);
   }
 
   void
-  CAMDENMSender::Populate_and_send_normal_cam()
+  CAMDENMSender::Populate_and_send_normal_cam(ca_data_t cam)
   {
-    struct timespec tv = compute_timestamp ();
-
     std::ostringstream msg;
 
-    /* If lonlat is used, positions should be converted, since TraCI returns by default XY */
-    /* Values are scaled according to ASN.1 specification. They are converted back at receiver */
-    /* Positions */
-    libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
-    if (m_lon_lat)
-      {
-        pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
-        pos.x = pos.x * DOT_ONE_MICRO;
-        pos.y = pos.y * DOT_ONE_MICRO;
-      }
-    else
-      { /* For the standard you should use WGS84 co-ordinate system */
-        pos.x = pos.x * MICRO;
-        pos.y = pos.y * MICRO;
-      }
-
     /* Create the message to be sent in plain text */
-    msg << "CAM," << m_id << ","
-        << pos.x << ","
-        << pos.y << ","
-        << m_client->TraCIAPI::vehicle.getSpeed(m_id)*CENTI << ","
-        << m_client->TraCIAPI::vehicle.getAcceleration (m_id)*DECI << ","
-        << m_client->TraCIAPI::vehicle.getAngle (m_id)*DECI << ","
-        << tv.tv_sec << "," << tv.tv_nsec << ",end\0";
+    msg << "CAM," << cam.id << ","
+        << cam.longitude << ","
+        << cam.latitude << ","
+        << cam.speed_value << ","
+        << cam.longAcc_value << ","
+        << cam.heading_value << ","
+        << cam.timestamp << ",end\0";
 
     // Tweak: add +1, otherwise some strange character are received at the end of the packet
     uint16_t packetSize = msg.str ().length () + 1;
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) msg.str ().c_str (), packetSize);
-
-    m_cam_sent++;
 
     // Send packet through the interface
     m_socket->Send(packet);
   }
 
   void
-  CAMDENMSender::Populate_and_send_asn_cam()
+  CAMDENMSender::Populate_and_send_asn_cam(ca_data_t data)
   {
     /* Here a ASN.1 CAM is encoded, following ETSI EN 302 637-3, ETSI EN 302 637-2 and ETSI TS 102 894-2 encoding rules
-     * in square brakets the unit used to transfer the data */
+     * in square brakets the unit used to encode the data */
 
     CAM_t *cam = (CAM_t*) calloc(1, sizeof(CAM_t));
 
@@ -325,87 +208,43 @@ namespace ns3
 
     /* Generation delta time [ms since 2004-01-01]. In case the scheduler is not real time, we have to use simulation time,
      * otherwise timestamps will be not reliable */
-    long timestamp;
-    if(m_real_time)
-      {
-        timestamp = compute_timestampIts ()%65536;
-      }
-    else
-      {
-        struct timespec tv = compute_timestamp ();
-        timestamp = (tv.tv_nsec/1000000)%65536;
-      }
-    cam->cam.generationDeltaTime = (GenerationDeltaTime_t)timestamp;
+    cam->cam.generationDeltaTime = (GenerationDeltaTime_t)data.timestamp;
 
     /* Station Type */
-    if (m_type=="passenger")
-      cam->cam.camParameters.basicContainer.stationType = StationType_passengerCar;
-    else if (m_type=="emergency")
-      cam->cam.camParameters.basicContainer.stationType = StationType_emergency;
-    else
-      cam->cam.camParameters.basicContainer.stationType = StationType_unknown;
+    cam->cam.camParameters.basicContainer.stationType = (StationType_t)data.type;
 
-    /* Positions - the standard is followed only if m_lonlat is true */
-    libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
-    if (m_lon_lat)
-      {
-        pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
-        pos.x = pos.x * DOT_ONE_MICRO;
-        pos.y = pos.y * DOT_ONE_MICRO;
-      }
-    else
-      { /* For the standard you should use WGS84 co-ordinate system */
-        pos.x = pos.x * MICRO;
-        pos.y = pos.y * MICRO;
-      }
-
+    /* Positions */
     //altitude [0,01 m]
-    cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeConfidence=AltitudeConfidence_unavailable;
-    cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeValue=AltitudeValue_unavailable;
+    cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeConfidence = (AltitudeConfidence_t)data.altitude_conf;
+    cam->cam.camParameters.basicContainer.referencePosition.altitude.altitudeValue = (AltitudeValue_t)data.altitude_value;
 
     //latitude WGS84 [0,1 microdegree]
-    Latitude_t latitudeT=(Latitude_t)retValue(pos.y,DEF_LATITUDE,0,0);
-    cam->cam.camParameters.basicContainer.referencePosition.latitude=latitudeT;
+    cam->cam.camParameters.basicContainer.referencePosition.latitude = (Latitude_t) data.latitude;
 
     //longitude WGS84 [0,1 microdegree]
-    Longitude_t longitudeT=(Longitude_t)retValue(pos.x,DEF_LONGITUDE,0,0);
-    cam->cam.camParameters.basicContainer.referencePosition.longitude=longitudeT;
+    cam->cam.camParameters.basicContainer.referencePosition.longitude = (Longitude_t) data.longitude;
 
     /* Heading WGS84 north [0.1 degree] */
-    double angle = m_client->TraCIAPI::vehicle.getAngle (m_id);
-    Heading heading;
-    heading.headingValue=(HeadingValue_t)retValue (angle*DECI,DEF_HEADING,0,0);
-    heading.headingConfidence=HeadingConfidence_unavailable;
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading=heading;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingConfidence = (HeadingConfidence_t) data.heading_conf;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingValue = (HeadingValue_t) data.heading_value;
 
     /* Speed [0.01 m/s] */
-    Speed_t vel;
-    double speed=m_client->TraCIAPI::vehicle.getSpeed(m_id);
-    vel.speedValue=(SpeedValue_t)retValue(speed*CENTI,DEF_SPEED,0,0);
-    vel.speedConfidence=SpeedConfidence_unavailable;
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed=vel;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed.speedConfidence = (SpeedConfidence_t) data.speed_conf;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed.speedValue = (SpeedValue_t) data.speed_value;
 
     /* Acceleration [0.1 m/s^2] */
-    LongitudinalAcceleration_t longAcc;
-    double acc=m_client->TraCIAPI::vehicle.getAcceleration (m_id);
-    longAcc.longitudinalAccelerationValue=(LongitudinalAccelerationValue_t)retValue(acc*DECI,DEF_ACCELERATION,0,0);
-    longAcc.longitudinalAccelerationConfidence=AccelerationConfidence_unavailable;
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration=longAcc;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration.longitudinalAccelerationConfidence = (AccelerationConfidence_t) data.longAcc_conf;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration.longitudinalAccelerationValue = (LongitudinalAccelerationValue_t) data.longAcc_value;
 
     /* Length and width of car [0.1 m] */
-    double veh_length = m_client->TraCIAPI::vehicle.getLength (m_id);
-    VehicleLength length;
-    length.vehicleLengthConfidenceIndication=VehicleLengthConfidenceIndication_unavailable;
-    length.vehicleLengthValue=(VehicleLengthValue_t)retValue (veh_length*DECI,DEF_LENGTH,0,0);
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength = length;
-    double veh_width = m_client->TraCIAPI::vehicle.getWidth (m_id);
-    VehicleWidth width = (VehicleWidth)retValue (veh_width*DECI,DEF_WIDTH,0,0);
-    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleWidth = width;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthConfidenceIndication = (VehicleLengthConfidenceIndication_t) data.length_conf;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthValue = (VehicleLengthValue_t) data.length_value;
+    cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleWidth = (VehicleWidth_t) data.width;
 
     /* Other needed fields */
-    cam->header.protocolVersion=FIX_PROT_VERS;
-    cam->header.stationID = std::stol (m_id.substr (3));
-    cam->header.messageID=FIX_CAMID;
+    cam->header.protocolVersion = data.proto;
+    cam->header.stationID = (StationID_t) data.id;
+    cam->header.messageID = data.messageid;
 
     /* We filled just some fields, it is possible to fill them all to match any purpose */
 
@@ -415,7 +254,7 @@ namespace ns3
     ssize_t ec = uper_encode_to_new_buffer(&asn_DEF_CAM, constraints, cam, &buffer);
     if (ec==-1)
       {
-        std::cout << "Cannot encode CAM" << std::endl;
+        std::cout << "Cannot encode CAM." << std::endl;
         return;
       }
 
@@ -424,60 +263,15 @@ namespace ns3
 
     m_socket->Send (packet);
 
-    m_cam_sent++;
-
     ASN_STRUCT_FREE(asn_DEF_CAM,cam);
   }
 
-  void
-  CAMDENMSender::Populate_and_send_normal_denm()
+  int
+  CAMDENMSender::Populate_and_send_normal_denm(den_data_t denm)
   {
     // Generate the packet
     std::ostringstream msg;
 
-    struct timespec tv = compute_timestamp ();
-
-    /* In order to encode the info about the edge, the string is hashed */
-    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    int my_edge_hash = (int)std::hash<std::string>{}(my_edge)%10000;
-
-    double my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
-
-    msg << "DENM,"
-        << my_edge_hash << ","
-        << my_pos_on_edge << ","
-        << tv.tv_sec << ","
-        << tv.tv_nsec << ",end\0";
-
-    //Tweak: add +1, otherwise some random characters are received at the end of the packet
-    uint16_t packetSize = msg.str ().length () + 1;
-    Ptr<Packet> packet = Create<Packet> ((uint8_t*) msg.str ().c_str (), packetSize);
-
-    m_socket->Send (packet);
-    m_denm_sent++;
-  }
-
-  void
-  CAMDENMSender::Populate_and_send_asn_denm()
-  {
-    /* Here a ASN.1 DENM is encoded, following ETSI EN 302 637-3, ETSI EN 302 637-2 and ETSI TS 102 894-2 encoding rules
-     * in square brakets the unit used to transfer the data */
-
-    DENM_t *denm = (DENM_t*) calloc(1, sizeof(DENM_t));
-
-    /* Header */
-    denm->header.protocolVersion=FIX_PROT_VERS;
-    denm->header.stationID=std::stoi(m_id.substr (3));
-    denm->header.messageID=FIX_DENMID;
-
-    /* Management container */
-    /* The actionID shall be the combination of an ITS-S ID and a sequence number. The ITS-S ID corresponds to stationID
-     * of the originating ITS-S that detects an event for the first time. The sequence number is assigned to the actionID
-     * for each new DENM. In our case we use the sequencenumber field to encode the speedmode. */
-    denm->denm.management.actionID.originatingStationID=std::stoi(m_id.substr (3));
-
-    /* Reference time [ms since 2004-01-01] (time at wich the DENM is generated). In case the scheduler is not real time,
-     * we have to use simulation time, otherwise timestamps will be not reliable */
     long timestamp;
     if(m_real_time)
       {
@@ -488,33 +282,81 @@ namespace ns3
         struct timespec tv = compute_timestamp ();
         timestamp = (tv.tv_nsec/1000000)%65536;
       }
-    INTEGER_t ref_time;
-    memset(&ref_time, 0, sizeof(ref_time));
-    asn_ulong2INTEGER(&ref_time, timestamp);
-    denm->denm.management.referenceTime=ref_time;
+    /* If validity is expired return 0 */
+    if ((timestamp - denm.detectiontime) > denm.validity)
+      return 0;
 
-    /* Detection time [ms since 2004-01-01] (time at which the event is detected). In this case the detection time and
-     * reference time are the same */
+    m_sequence++;
+    m_actionId++;
+
+    msg << "DENM,"
+        << denm.evpos_lat << ","
+        << denm.evpos_long << ","
+        << timestamp << ","
+        << m_sequence << ",end\0";
+
+    //Tweak: add +1, otherwise some random characters are received at the end of the packet
+    uint16_t packetSize = msg.str ().length () + 1;
+    Ptr<Packet> packet = Create<Packet> ((uint8_t*) msg.str ().c_str (), packetSize);
+
+    m_socket->Send (packet);
+    return m_actionId;
+  }
+
+  int
+  CAMDENMSender::Populate_and_send_asn_denm(den_data_t data)
+  {
+    /* Here a ASN.1 DENM is encoded, following ETSI EN 302 637-3, ETSI EN 302 637-2 and ETSI TS 102 894-2 encoding rules
+     * in square brakets the unit used to transfer the data */
+
+    /* First you have to check if the DENM validity has expired */
+    long timestamp;
+    if(m_real_time)
+      {
+        timestamp = compute_timestampIts ()%65536;
+      }
+    else
+      {
+        struct timespec tv = compute_timestamp ();
+        timestamp = (tv.tv_nsec/1000000)%65536;
+      }
+    /* If validity is expired return 0 */
+    if ((timestamp - data.detectiontime) > data.validity)
+      return 0;
+
+    m_sequence++;
+    m_actionId++;
+
+    DENM_t *denm = (DENM_t*) calloc(1, sizeof(DENM_t));
+
+    /* Header */
+    denm->header.messageID = data.messageid;
+    denm->header.stationID = data.stationid;
+    denm->header.protocolVersion = data.proto;
+
+    /* Management container */
+    /* Set actionID and sequence */
+    denm->denm.management.actionID.sequenceNumber = m_sequence;
+    denm->denm.management.actionID.originatingStationID = m_actionId;
+
+    /* Detection time [ms since 2004-01-01] (time at which the event is detected). */
     INTEGER_t detection_time;
     memset(&detection_time, 0, sizeof(detection_time));
-    asn_ulong2INTEGER(&detection_time, timestamp);
+    asn_long2INTEGER(&detection_time, data.detectiontime);
     denm->denm.management.detectionTime=detection_time;
 
-    /* Station Type */
-    if (m_type=="passenger")
-      denm->denm.management.stationType=StationType_passengerCar;
-    else if (m_type=="emergency")
-      denm->denm.management.stationType=StationType_emergency;
-    else
-      denm->denm.management.stationType=StationType_unknown;
+    /* Reference time [ms since 2004-01-01] (time at wich the DENM is generated). In case the scheduler is not real time,
+     * we have to use simulation time, otherwise timestamps will be not reliable */
+    INTEGER_t ref_time;
+    memset(&ref_time, 0, sizeof(ref_time));
+    asn_long2INTEGER(&ref_time, timestamp);
+    denm->denm.management.referenceTime = ref_time;
 
-    /* In order to encode the info about the edge, the string containing the edgeId is hashed and placed inside latitude
-     * This is not allowed from ETSI (of course..) ut we needed a way to transmit those infos in a DENM */
-    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    int my_edge_hash = (int)std::hash<std::string>{}(my_edge)%10000;
-    double my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
-    denm->denm.management.eventPosition.latitude=my_edge_hash;
-    denm->denm.management.eventPosition.longitude=my_pos_on_edge;
+    /* Station Type */
+    denm->denm.management.stationType = data.stationtype;
+
+    denm->denm.management.eventPosition.latitude=data.evpos_lat;
+    denm->denm.management.eventPosition.longitude=data.evpos_long;
 
     /** Encoding **/
     void *buffer = NULL;
@@ -523,13 +365,14 @@ namespace ns3
     if (ec==-1)
       {
         std::cout << "Cannot encode DENM" << std::endl;
-        return;
+        return 0;
       }
+
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) buffer, ec+1);
     m_socket->Send (packet);
 
-    m_denm_sent++;
     ASN_STRUCT_FREE(asn_DEF_DENM,denm);
+    return m_actionId;
   }
 
   void
@@ -548,118 +391,191 @@ namespace ns3
         /** Decoding **/
         /* Try to decode it as a CAM and as a DENM, then check which decoding is ok */
         void *decoded_=NULL;
-        asn_dec_rval_t rval, rval2;
+        asn_dec_rval_t rval;
         rval = uper_decode(NULL, &asn_DEF_CAM, &decoded_, buffer, packet->GetSize ()-1, 0, 0);
-        void *decoded2_=NULL;
-        rval2 = uper_decode (NULL, &asn_DEF_DENM, &decoded2_, buffer, packet->GetSize ()-1, 0, 0);
 
-        /* Parse it as a CAM, read its type, if it is a DENM re-parse it as a DENM*/
+        if (rval.code != RC_OK)
+          {
+            std::cout << "ASN.1 decoding failed!" << std::endl;
+            return;
+          }
+
+        /* Parse it as a CAM, read its type, if it is a DENM send it to decodeDenm */
         CAM_t *decoded = (CAM_t *) decoded_;
         if (decoded->header.messageID == FIX_CAMID)
-          {
-            if (rval.code != RC_OK)
-              {
-                std::cout << "CAM ASN decoding failed!" << std::endl;
-                return;
-              }
-
-            /* It is a CAM!*/
-            /* Now in "decoded" you have the CAM */
-
-            /* Build your strategy here */
-            m_cam_received++;
-            //xer_fprint (stdout,&asn_DEF_CAM,decoded2); //Print what you encoded
-            //std::cout << "CAM in ASN.1 format received!" << std::endl;
-            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
-            cam_field_t cam;
-            cam.pos.first = (double)decoded->cam.camParameters.basicContainer.referencePosition.longitude;
-            cam.pos.second = (double)decoded->cam.camParameters.basicContainer.referencePosition.latitude;
-            cam.speed = (double)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed.speedValue;
-            cam.acceleration = (double)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration.longitudinalAccelerationValue;
-            cam.angle = (int)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingValue;
-            app->receiveCAM (cam);
-          }
+          CAMDENMSender::Decode_asn_cam(buffer,packet->GetSize ()-1);
         else if (decoded->header.messageID == FIX_DENMID)
-          {
-            if (rval2.code != RC_OK)
-              {
-                std::cout << "DENM ASN decoding failed!" << std::endl;
-                return;
-              }
-
-            DENM_t *decoded2 = (DENM_t *) decoded2_;
-
-            /* Now in "decoded2" you have the DENM */
-
-            /* Build your strategy here */
-            m_denm_received++;
-            //xer_fprint (stdout,&asn_DEF_DENM,decoded); //Print what you encoded
-            //std::cout << "DENM in ASN.1 format received!" << std::endl;
-
-            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
-            denm_field_t denm;
-            denm.edge_hash = (int)decoded2->denm.management.eventPosition.latitude;
-            denm.pos_on_edge = (double)decoded2->denm.management.eventPosition.longitude;
-            app->receiveDENM (denm);
-
-            ASN_STRUCT_FREE(asn_DEF_DENM,decoded2);
-          }
+          CAMDENMSender::Decode_asn_denm (buffer,packet->GetSize ()-1);
         else
-            std::cout << "Unknown packet received" << std::endl;
+          std::cout << "Unknown ASN.1 packet received" << std::endl;
 
         ASN_STRUCT_FREE(asn_DEF_CAM,decoded);
       }
-
-    else /* Plain text messages */
+    else
       {
-        std::string s = std::string ((char*) buffer);
-        //std::cout << "Packet received by:" << m_id << " - from:" << from << " - content:" << s << std::endl;
         std::vector<std::string> values;
+        std::string s = std::string ((char*) buffer);
+        //std::cout << "Packet received - content:" << s << std::endl;
         std::stringstream ss(s);
         std::string element;
         while (std::getline(ss, element, ',')) {
             values.push_back (element);
           }
-        if (values[0]=="CAM")
-          {
-            /* Build your strategy here */
-            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
-            cam_field_t cam;
 
-            cam.pos = std::make_pair(std::stod(values[2]),std::stod(values[3]));
-            cam.speed = std::stod(values[4]);
-            cam.acceleration = std::stod(values[5]);
-            cam.angle = std::stoi(values[6]);
-
-            app->receiveCAM (cam);
-            m_cam_received++;
-          }
+        if(values[0]=="CAM")
+          CAMDENMSender::Decode_normal_cam(buffer);
         else if (values[0]=="DENM")
-          {
-            /* Build your strategy here */
-            Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
-            denm_field_t denm;
-            denm.edge_hash = std::stoi(values[1]);
-            denm.pos_on_edge = std::stod(values[2]);
-
-            app->receiveDENM (denm);
-            m_denm_received++;
-          }
+          CAMDENMSender::Decode_normal_denm(buffer);
         else
-          std::cout << "Unknown packet received by " << m_id << std::endl;
+          std::cout << "Unknown packet received" << std::endl;
       }
   }
 
-  /* This function is used to calculate the delay for packet reception */
-  double
-  CAMDENMSender::time_diff(double sec1, double usec1, double sec2, double usec2)
-    {
-            double tot1 , tot2 , diff;
-            tot1 = sec1 + (usec1 / 1000000000.0);
-            tot2 = sec2 + (usec2 / 1000000000.0);
-            diff = tot2 - tot1;
-            return diff;
-    }
+  void
+  CAMDENMSender::Decode_asn_cam(uint8_t *buffer, uint32_t size)
+  {
+    /** Decoding **/
+    void *decoded_=NULL;
+    asn_dec_rval_t rval;
+    ca_data_t cam;
+
+    rval = uper_decode(0, &asn_DEF_CAM, &decoded_, buffer, size, 0, 1);
+
+    if (rval.code == RC_FAIL)
+      {
+        std::cout << "CAM ASN.1 decoding failed!"<< std::endl;
+        return;
+      }
+
+    CAM_t *decoded = (CAM_t *) decoded_;
+
+    if (decoded->header.messageID == FIX_CAMID)
+      {
+        /* Now in "decoded" you have the CAM */
+        /* Build your CAM strategy here! */
+        cam.longitude = (long)decoded->cam.camParameters.basicContainer.referencePosition.longitude;
+        cam.latitude = (long)decoded->cam.camParameters.basicContainer.referencePosition.latitude;
+        cam.altitude_conf = (long)decoded->cam.camParameters.basicContainer.referencePosition.altitude.altitudeConfidence;
+        cam.altitude_value = (long)decoded->cam.camParameters.basicContainer.referencePosition.altitude.altitudeValue;
+        cam.heading_conf = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingConfidence;
+        cam.heading_value = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingValue;
+        cam.id = (long)decoded->header.stationID;
+        cam.length_conf = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthConfidenceIndication;
+        cam.length_value = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthValue;
+        cam.width = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleWidth;
+        cam.longAcc_conf = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration.longitudinalAccelerationConfidence;
+        cam.longAcc_value = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration.longitudinalAccelerationValue;
+        cam.messageid = (int)decoded->header.messageID;
+        cam.proto = (int)decoded->header.protocolVersion;
+        cam.speed_conf = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed.speedConfidence;
+        cam.speed_value = (long)decoded->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed.speedValue;
+        cam.timestamp = (long)decoded->cam.generationDeltaTime;
+        cam.type = (long)decoded->cam.camParameters.basicContainer.stationType;
+
+        Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+        app->receiveCAM (cam);
+      }
+
+    ASN_STRUCT_FREE(asn_DEF_CAM,decoded);
+  }
+
+  void
+  CAMDENMSender::Decode_normal_cam(uint8_t *buffer)
+  {
+    ca_data_t cam;
+    std::vector<std::string> values;
+    std::string s = std::string ((char*) buffer);
+    //std::cout << "Packet received - content:" << s << std::endl;
+    std::stringstream ss(s);
+    std::string element;
+    while (std::getline(ss, element, ',')) {
+        values.push_back (element);
+      }
+
+    if(values[0]=="CAM")
+      {
+        cam.messageid = FIX_CAMID;
+        cam.latitude = std::stod(values[2]);
+        cam.longitude = std::stod(values[3]);
+        cam.speed_value = std::stod(values[4]);
+
+        Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+        app->receiveCAM (cam);
+      }
+  }
+  void
+  CAMDENMSender::Decode_asn_denm(uint8_t *buffer,uint32_t size)
+  {
+    /** Decoding **/
+    void *decoded_=NULL;
+    asn_dec_rval_t rval;
+    den_data_t denm;
+
+    rval = uper_decode(0, &asn_DEF_DENM, &decoded_, buffer, size, 0, 1);
+
+    if (rval.code == RC_FAIL)
+      {
+        std::cout << "DENM ASN.1 decoding failed!" << std::endl;
+        return;
+      }
+
+    DENM_t *decoded = (DENM_t *) decoded_;
+
+    if (decoded->header.messageID==FIX_DENMID)
+      {
+        denm.proto = (int)decoded->header.protocolVersion;
+        denm.stationid = (long)decoded->header.stationID;
+        denm.messageid = (int)decoded->header.messageID;
+
+        denm.sequence = (int)decoded->denm.management.actionID.sequenceNumber;
+        denm.actionid = (long)decoded->denm.management.actionID.originatingStationID;
+
+        long detection_time;
+        memset(&detection_time, 0, sizeof(detection_time));
+        asn_INTEGER2long (&decoded->denm.management.detectionTime,&detection_time);
+        denm.detectiontime =detection_time;
+
+        long ref_time;
+        memset(&ref_time, 0, sizeof(ref_time));
+        asn_INTEGER2long (&decoded->denm.management.referenceTime,&ref_time);
+        denm.referencetime = ref_time;
+
+        denm.stationtype = (long)decoded->denm.management.stationType;
+
+        denm.evpos_lat = (long)decoded->denm.management.eventPosition.latitude;
+        denm.evpos_long = (long)decoded->denm.management.eventPosition.longitude;
+
+        Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+        app->receiveDENM (denm);
+      }
+    ASN_STRUCT_FREE(asn_DEF_DENM,decoded);
+  }
+
+  void
+  CAMDENMSender::Decode_normal_denm(uint8_t *buffer)
+  {
+    den_data_t denm;
+    std::vector<std::string> values;
+    std::string s = std::string ((char*) buffer);
+    //std::cout << "Packet received - content:" << s << std::endl;
+    std::stringstream ss(s);
+    std::string element;
+    while (std::getline(ss, element, ',')) {
+        values.push_back (element);
+      }
+
+    if(values[0]=="DENM")
+      {
+        denm.messageid = FIX_DENMID;
+        denm.evpos_lat = std::stol(values[1]);
+        denm.evpos_long = std::stol(values[2]);
+        denm.detectiontime =  std::stol(values[3]);
+        denm.sequence = std::stoi(values[3]);
+
+        Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+        app->receiveDENM (denm);
+      }
+  }
 
   struct timespec
   CAMDENMSender::compute_timestamp ()
@@ -689,6 +605,7 @@ namespace ns3
     long elapsed_since_2004 = millis.count() - TIME_SHIFT; // in TIME_SHIFT we saved the millisec from epoch to 2004-01-01
     return elapsed_since_2004;
   }
+
 }
 
 

@@ -18,7 +18,7 @@
 
       <vehicle id="veh1" type="Car1" depart="3.82968458322" route="5">
     </vehicle>
-      <vehicle id="veh2" type="Car2" depart="5.40697457483" route="0">
+      <vehicle id="veh2" type="Car6" depart="5.40697457483" route="0">
     </vehicle>
       <vehicle id="veh3" type="Car3" depart="7.32850696159" route="1">
     </vehicle>
