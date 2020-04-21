@@ -38,12 +38,13 @@ main (int argc, char *argv[])
   double sumo_updates = 0.01;
   bool send_cam = true;
   bool send_denm = true;
-  bool asn = false;
+  bool asn = true;
   std::string sumo_folder = "src/automotive/examples/sumo-files/";
   std::string mob_trace = "cars.rou.xml";
   std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
   double cam_intertime = 0.1;
-  bool send_lon_lat = false;
+  std::string csv_name;
+  bool send_lon_lat = true;
 
   /*** 0.b LENA + V2X Options ***/
   uint16_t numberOfNodes;
@@ -52,13 +53,13 @@ main (int argc, char *argv[])
   double ueTxPower = 23.0;                // Transmission power in dBm
   double probResourceKeep = 0.0;          // Probability to select the previous resource again [0.0-0.8]
   uint32_t mcs = 20;                      // Modulation and Coding Scheme
-  bool harqEnabled = false;               // Retransmission enabled
+  bool harqEnabled = false;               // Retransmission enabled (harq not available yet)
   bool adjacencyPscchPssch = true;        // Subchannelization scheme
   bool partialSensing = false;            // Partial sensing enabled (actual only partialSensing is false supported)
   uint16_t sizeSubchannel = 10;           // Number of RBs per subchannel
   uint16_t numSubchannel = 3;             // Number of subchannels per subframe
   uint16_t startRbSubchannel = 0;         // Index of first RB corresponding to subchannelization
-  uint16_t pRsvp = 100;                   // Resource reservation interval
+  uint16_t pRsvp = 20;                    // Resource reservation interval
   uint16_t t1 = 4;                        // T1 value of selection window
   uint16_t t2 = 100;                      // T2 value of selection window
   uint16_t slBandwidth;                   // Sidelink bandwidth
@@ -79,6 +80,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
   cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
   cmd.AddValue ("lonlat", "Send LonLat instead on XY", send_lon_lat);
+  cmd.AddValue ("csv-log", "Name of the CSV log file", csv_name);
 
   /* Cmd Line option for v2x */
   cmd.AddValue ("adjacencyPscchPssch", "Scheme for subchannelization", adjacencyPscchPssch);
@@ -342,6 +344,7 @@ main (int argc, char *argv[])
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
   AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
+  AppSampleHelper.SetAttribute ("CSV", StringValue(csv_name));
 
   /* callback function for node creation */
   int i=0;

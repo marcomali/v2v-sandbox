@@ -51,10 +51,10 @@ private:
   /**
    * \brief chenge color of the vehicle.
    *
-   * This function just change the color of the vehicle, turning it to yellow.
+   * This function rolls back the speed of the vehicle, turning it to its original value.
    *
    */
-  void ChangeColor ();
+  void SetMaxSpeed ();
   /**
    * @brief This function compute the timestamps
   */
@@ -84,6 +84,13 @@ private:
   bool m_print_summary; //!< To print a small summary when vehicle leaves the simulation
   bool m_already_print; //!< To avoid printing two summary
   bool m_real_time; //!< To decide wheter to use realtime scheduler
+  std::string m_csv_name; //!< CSV log file name
+  std::ofstream m_csv_ofstream_cam;
+  std::ofstream m_csv_ofstream_denm;
+
+  //[TBR]
+  std::ofstream m_csv_ofstream_speed;
+
 
   /* Counters */
   int m_cam_sent;
@@ -91,9 +98,12 @@ private:
   int m_denm_sent;
   int m_denm_received;
 
-  EventId m_change_color; //!< Event to change the vehicle color
+  EventId m_speed_event; //!< Event to change the vehicle speed
   EventId m_send_denm_ev; //!< Event to send the DENM
   EventId m_send_cam_ev; //!< Event to send the CAM
+
+  EventId m_purple; //!< Event to send the CAM [TBR]
+
 };
 
 } // namespace ns3

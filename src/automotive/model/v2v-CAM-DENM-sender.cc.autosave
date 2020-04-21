@@ -364,6 +364,7 @@ namespace ns3
 
     denm->denm.management.eventPosition.latitude=data.evpos_lat;
     denm->denm.management.eventPosition.longitude=data.evpos_long;
+   
 
 //    denm->denm.alacarte = (AlacarteContainer_t*)calloc(1, sizeof(AlacarteContainer_t));
 //    denm->denm.alacarte->externalTemperature = (Temperature_t*)calloc(1, sizeof(Temperature_t));

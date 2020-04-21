@@ -88,6 +88,11 @@ namespace ns3
             BooleanValue(false),
             MakeBooleanAccessor (&appSample::m_print_summary),
             MakeBooleanChecker ())
+        .AddAttribute ("CSV",
+            "CSV log name",
+            StringValue (),
+            MakeStringAccessor (&appSample::m_csv_name),
+            MakeStringChecker ())
         .AddAttribute ("Client",
             "TraCI client for SUMO",
             PointerValue (0),
@@ -131,25 +136,53 @@ namespace ns3
     m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
     m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
-    /* Schedule CAM dissemination */
-    if (m_send_cam)
-       m_send_cam_ev = Simulator::Schedule (Seconds (m_cam_intertime), &appSample::TriggerCam, this);
 
-    /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
-    std::string my_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
-    if (my_type=="emergency" && m_send_denm)
+    /* Schedule CAM dissemination */
+    std::srand(Simulator::Now().GetNanoSeconds ());
+    if (m_send_cam)
       {
-         m_send_denm_ev = Simulator::Schedule (Seconds (1.0), &appSample::TriggerDenm, this);
+         double desync = ((double)std::rand()/RAND_MAX);
+         m_send_cam_ev = Simulator::Schedule (Seconds (desync), &appSample::TriggerCam, this);
       }
+    /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
+    if (m_type=="emergency" && m_send_denm)
+      {
+        double desync = ((double)std::rand()/RAND_MAX)/4;
+        m_send_denm_ev = Simulator::Schedule (Seconds (desync), &appSample::TriggerDenm, this);
+      }
+
+    if (!m_csv_name.empty ())
+      {
+        m_csv_ofstream_cam.open (m_csv_name+"-"+m_id+"-CAM.csv",std::ofstream::trunc);
+        m_csv_ofstream_denm.open (m_csv_name+"-"+m_id+"-DENM.csv",std::ofstream::trunc);
+        m_csv_ofstream_cam << "messageId,camId,timestamp,latitude,longitude,altitude,heading,speed,acceleration,MeasuredDelayms" << std::endl;
+        m_csv_ofstream_denm << "messageId,sequence,referenceTime,detectionTime,stationId,MeasuredDelayms" << std::endl;
+      }
+
+    //[TBR]
+    if (m_type=="emergency"&&!m_csv_name.empty ())
+      m_csv_ofstream_speed.open ("speed"+m_id+".csv",std::ofstream::trunc);
   }
 
   void
   appSample::StopApplication ()
   {
     NS_LOG_FUNCTION(this);
-    Simulator::Remove(m_change_color);
+    Simulator::Remove(m_speed_event);
     Simulator::Remove(m_send_denm_ev);
     Simulator::Remove(m_send_cam_ev);
+
+
+    if (!m_csv_name.empty ())
+      {
+        m_csv_ofstream_cam.close ();
+        m_csv_ofstream_denm.close ();
+      }
+
+    //[TBR]
+    if (m_type=="emergency"&&!m_csv_name.empty ())
+      m_csv_ofstream_speed.close ();
+
 
     if (m_print_summary && !m_already_print)
       {
@@ -204,8 +237,10 @@ namespace ns3
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
     long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
     long my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
-    denm.evpos_lat = my_edge_hash;    denm.evpos_long = my_pos_on_edge;
+    denm.evpos_lat = my_edge_hash;
+    denm.evpos_long = my_pos_on_edge;
     denm.validity = 10; // seconds
+    denm.stationid = std::stol (m_id.substr (3));
 
     Ptr<CAMDENMSender> app = GetNode()->GetApplication (0)->GetObject<CAMDENMSender> ();
     int app_ret = app->SendDenm(denm);
@@ -219,6 +254,10 @@ namespace ns3
   void
   appSample::TriggerCam()
   {
+    //[TBR]
+    if (m_type=="emergency"&&!m_csv_name.empty ())
+        m_csv_ofstream_speed << m_client->TraCIAPI::vehicle.getSpeed (m_id) << std::endl;
+
     /* Build CAM data */
     ca_data_t cam;
 
@@ -252,6 +291,7 @@ namespace ns3
     //altitude [0,01 m]
     cam.altitude_conf = AltitudeConfidence_unavailable;
     cam.altitude_value = AltitudeValue_unavailable;
+
     //latitude WGS84 [0,1 microdegree]
     cam.latitude = (long)retValue(pos.y*DOT_ONE_MICRO,DEF_LATITUDE,0,0);
     //longitude WGS84 [0,1 microdegree]
@@ -284,6 +324,10 @@ namespace ns3
     cam.id = std::stol (m_id.substr (3));
     cam.messageid = FIX_CAMID;
 
+    //[tbr]
+    struct timespec tv2 = compute_timestamp ();
+    cam.latitude = (tv2.tv_nsec/1000)%900000000;
+
     Ptr<CAMDENMSender> app = GetNode()->GetApplication (0)->GetObject<CAMDENMSender> ();
     app->SendCam (cam);
 
@@ -297,13 +341,33 @@ namespace ns3
   {
     /* Implement CAM strategy here */
    m_cam_received++;
-
+   long timestamp;
+   if(m_real_time)
+     {
+       timestamp = compute_timestampIts ()%65536;
+     }
+   else
+     {
+       struct timespec tv = compute_timestamp ();
+       //timestamp = (tv.tv_nsec/1000000)%65536; // [TBR]
+       timestamp = (tv.tv_nsec/1000)%900000000;//[TBR]
+     }
+   if (!m_csv_name.empty ())
+     {
+       long delay = timestamp-cam.latitude;//[tbr]
+       m_csv_ofstream_cam << cam.messageid << "," << cam.id << ",";
+       m_csv_ofstream_cam << cam.timestamp << "," << (double)cam.latitude/DOT_ONE_MICRO << ",";
+       m_csv_ofstream_cam << (double)cam.longitude/DOT_ONE_MICRO << "," << (cam.altitude_value!=AltitudeValue_unavailable ? (double)cam.altitude_value/DOT_ONE_MICRO : AltitudeValue_unavailable) << ",";
+       m_csv_ofstream_cam << (double)cam.heading_value/DECI << "," << (double)cam.speed_value/CENTI << ",";
+       m_csv_ofstream_cam << (double)cam.longAcc_value/DECI << "," << delay << std::endl;
+     }
   }
 
   void
   appSample::receiveDENM (den_data_t denm)
   {
     m_denm_received++;
+
     /* Implement DENM strategy here */
 
     /* In this case the vehicle that receives a DENM should check:
@@ -322,35 +386,78 @@ namespace ns3
     long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
     long my_edge_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
 
+
     if (m_type!="emergency")
       {
         if (denm.evpos_lat == my_edge_hash)
           {
             if (denm.evpos_long < my_edge_pos)
               {
-                m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
                 /* Slowdown only if you are not in the takeover lane,
                  * otherwise the ambulance may be stuck behind */
                 if (m_client->TraCIAPI::vehicle.getLaneIndex (m_id) == 0)
-                  m_client->TraCIAPI::vehicle.slowDown (m_id, m_max_speed*0.5, 3);
+                  {
+                    m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
+                    m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed*0.5);
+                    libsumo::TraCIColor orange;
+                    orange.r=232;orange.g=126;orange.b=4;orange.a=255;
+                    m_client->TraCIAPI::vehicle.setColor (m_id,orange);
 
+                    Simulator::Remove(m_speed_event);
+                    m_speed_event = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
+                  }
+                else
+                  {
+                    m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
+                    m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed*1.5);
+                    libsumo::TraCIColor green;
+                    green.r=0;green.g=128;green.b=80;green.a=255;
+                    m_client->TraCIAPI::vehicle.setColor (m_id,green);
+
+                    Simulator::Remove(m_speed_event);
+                    m_speed_event = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
+                  }
+              }
+            else if (denm.evpos_long - 50 < my_edge_pos)
+              {
+                m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
+                m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed*0.5);
                 libsumo::TraCIColor orange;
                 orange.r=232;orange.g=126;orange.b=4;orange.a=255;
                 m_client->TraCIAPI::vehicle.setColor (m_id,orange);
 
-                Simulator::Remove(m_change_color);
-                m_change_color = Simulator::Schedule (Seconds (3.0), &appSample::ChangeColor, this);
+                Simulator::Remove(m_speed_event);
+                m_speed_event = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
               }
           }
+      }
+
+    if (!m_csv_name.empty ())
+      {
+        long timestamp;
+        if(m_real_time)
+          {
+            timestamp = compute_timestampIts ()%65536;
+          }
+        else
+          {
+            struct timespec tv = compute_timestamp ();
+            timestamp = (tv.tv_nsec/1000000)%65536;
+          }
+        long delay = timestamp - denm.referencetime;
+        m_csv_ofstream_denm << denm.messageid << "," << denm.sequence << ",";
+        m_csv_ofstream_denm << denm.referencetime << "," << denm.detectiontime << ",";
+        m_csv_ofstream_denm << denm.stationid << "," << delay << std::endl;
       }
   }
 
   void
-  appSample::ChangeColor ()
+  appSample::SetMaxSpeed ()
   {
     libsumo::TraCIColor normal;
     normal.r=255;normal.g=255;normal.b=0;normal.a=255;
     m_client->TraCIAPI::vehicle.setColor (m_id, normal);
+    m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed);
   }
 
   struct timespec

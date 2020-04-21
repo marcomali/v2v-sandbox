@@ -31,12 +31,13 @@ main (int argc, char *argv[])
   double sumo_updates = 0.01;
   bool send_cam = true;
   bool send_denm = true;
-  bool asn = false;
+  bool asn = true;
   std::string sumo_folder = "src/automotive/examples/sumo-files/";
   std::string mob_trace = "cars.rou.xml";
   std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
   double cam_intertime = 0.1;
-  bool send_lon_lat = false;
+  std::string csv_name;
+  bool send_lon_lat = true;
 
   double simTime = 100;
 
@@ -57,6 +58,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
   cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
   cmd.AddValue ("lonlat", "Send LonLat instead on XY", send_lon_lat);
+  cmd.AddValue ("csv-log", "Name of the CSV log file", csv_name);
 
   cmd.AddValue("sim-time", "Total duration of the simulation [s])", simTime);
 
@@ -166,6 +168,7 @@ main (int argc, char *argv[])
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
   AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
+  AppSampleHelper.SetAttribute ("CSV", StringValue(csv_name));
 
   /* callback function for node creation */
   std::function<Ptr<Node> ()> setupNewWifiNode = [&] () -> Ptr<Node>
@@ -209,6 +212,7 @@ main (int argc, char *argv[])
 
   /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
+  wifiPhy.EnablePcapAll ("prova");
 
   /*** 8. Start Simulation ***/
   Simulator::Stop (simulationTime);
