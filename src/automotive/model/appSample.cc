@@ -228,7 +228,7 @@ namespace ns3
     if (m_type=="passenger")
       denm.stationtype = StationType_passengerCar;
     else if (m_type=="emergency")
-      denm.stationtype = StationType_emergency;
+      denm.stationtype = StationType_specialVehicles;
     else
       denm.stationtype = StationType_unknown;
 
@@ -279,7 +279,7 @@ namespace ns3
     if (m_type=="passenger")
       cam.type = StationType_passengerCar;
     else if (m_type=="emergency")
-      cam.type = StationType_emergency;
+      cam.type = StationType_specialVehicles;
     else
       cam.type = StationType_unknown;
 

@@ -1,0 +1,103 @@
+#include "denData.h"
+
+denData::denData()
+{
+  // m_management optional fields initialization
+  m_management.validityDuration=NULL;
+  m_management.transmissionInterval=NULL;
+  m_management.termination=NULL;
+  m_management.relevanceDistance=NULL;
+  m_management.relevanceTrafficDirection=NULL;
+
+  // m_situation optional fields initialization
+  m_situation.linkedCause=NULL;
+  m_situation.eventHistory=NULL;
+
+  // m_location optional fields initialization
+  m_location.eventSpeed=NULL;
+  m_location.eventPositionHeading=NULL;
+  m_location.roadType=NULL;
+
+  // m_alacarte optional fields initialization
+  m_alacarte.lanePosition=NULL;
+  m_alacarte.impactReduction=NULL;
+  m_alacarte.externalTemperature=NULL;
+  m_alacarte.roadWorks=NULL;
+  m_alacarte.positioningSolution=NULL;
+  m_alacarte.stationaryVehicle=NULL;
+
+  // Set m_internals isMandatorySet to false during the object creation
+  m_internals.isMandatorySet=false;
+}
+
+void
+denData::setDenmMandatoryFields (long detectionTime_ms, long latReference_deg, long longReference_deg)
+{
+  m_management.detectionTime = asnTimeConvert(detectionTime_ms);
+  m_management.eventPosition.latitude = (latReference_deg == MANDATORY_LAT_UNAVAILABLE ? MANDATORY_LAT_UNAVAILABLE : (Latitude_t) latReference_deg/DOT_ONE_MICRO);
+  m_management.eventPosition.longitude = (longReference_deg == MANDATORY_LONG_UNAVAILABLE ? MANDATORY_LONG_UNAVAILABLE : (Longitude_t) longReference_deg/DOT_ONE_MICRO);
+  m_management.eventPosition.altitude.altitudeValue = AltitudeValue_unavailable;
+  m_management.eventPosition.altitude.altitudeConfidence = AltitudeConfidence_unavailable;
+
+  m_internals.isMandatorySet=true;
+}
+
+void
+denData::setDenmMandatoryFields (long detectionTime_ms, long latReference_deg, long longReference_deg, long altitude_m)
+{
+  setDenmMandatoryFields (detectionTime_ms,latReference_deg,longReference_deg);
+  m_management.eventPosition.altitude.altitudeValue = altitude_m/CENTI;
+}
+
+void
+denData::setDenmMandatoryFields_asn_types (TimestampIts_t detectionTime, ReferencePosition_t eventPosition)
+{
+  m_management.detectionTime = detectionTime;
+  m_management.eventPosition = eventPosition;
+
+  m_internals.isMandatorySet=true;
+}
+
+void
+denData::setDenmMandatoryFields (long originatingStationID, long sequenceNumber, long detectionTime_ms, long latReference_deg, long longReference_deg)
+{
+  setDenmMandatoryFields (detectionTime_ms,latReference_deg,longReference_deg);
+  m_management.actionID.originatingStationID = (StationID_t) originatingStationID;
+  m_management.actionID.sequenceNumber = (SequenceNumber_t) sequenceNumber;
+}
+
+void
+denData::setDenmMandatoryFields (long originatingStationID, long sequenceNumber, long detectionTime_ms, long latReference_deg, long longReference_deg, long altitude_m)
+{
+  setDenmMandatoryFields (detectionTime_ms,latReference_deg,longReference_deg, altitude_m);
+  m_management.actionID.originatingStationID = (StationID_t) originatingStationID;
+  m_management.actionID.sequenceNumber = (SequenceNumber_t) sequenceNumber;
+
+}
+
+void
+denData::setDenmMandatoryFields_asn_types (ActionID_t actionID, TimestampIts_t detectionTime, ReferencePosition_t eventPosition)
+{
+  setDenmMandatoryFields_asn_types(detectionTime,eventPosition);
+  m_management.actionID = actionID;
+}
+
+INTEGER_t
+denData::asnTimeConvert (long time)
+{
+  INTEGER_t value;
+  memset(&value,0,sizeof(value));
+  asn_long2INTEGER (&value, time);
+  return value;
+}
+
+/* Integrity check method */
+bool
+denData::isDenDataRight()
+{
+  if(m_internals.isMandatorySet==false)
+    {
+      return false;
+    }
+  return true;
+}

@@ -1,14 +1,14 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+#include "ns3/asn_utils.h"
+
 #define SPEED_OF_LIGHT      299792458.0
 #define OFFSET_X            0
 #define OFFSET_Y            0
 
 //ASN.1 utils
-#define FIX_PROT_VERS       1
 #define FIX_CAMID           2
-#define FIX_DENMID          1
 #define DEF_LATITUDE        90000001
 #define DEF_LONGITUDE       1800000001
 #define DEF_LENGTH          1022
@@ -16,10 +16,7 @@
 #define DEF_SPEED           16383
 #define DEF_ACCELERATION    161
 #define DEF_HEADING         3601
-#define DECI                10
-#define CENTI               100
-#define MICRO               1000000
-#define DOT_ONE_MICRO       10000000
+
 
 //Epoch time at 2004-01-01
 #define TIME_SHIFT 1072915200000

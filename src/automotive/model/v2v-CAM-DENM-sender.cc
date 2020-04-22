@@ -366,7 +366,7 @@ namespace ns3
     denm->denm.management.eventPosition.longitude=data.evpos_long;
 
 //    denm->denm.alacarte = (AlacarteContainer_t*)calloc(1, sizeof(AlacarteContainer_t));
-//    denm->denm.alacarte->externalTemperature = (Temperature_t*)calloc(1, sizeof(Temperature_t));
+//      denm->denm.alacarte->externalTemperature = (Temperature_t*)calloc(1, sizeof(Temperature_t));
 
 //    Temperature_t temp = 52;
 //    denm->denm.alacarte->externalTemperature = &temp;
@@ -527,6 +527,7 @@ namespace ns3
         cam.longAcc_value = std::stol(values[6]);
         cam.heading_value = std::stol(values[7]);
         cam.timestamp = std::stol(values[8]);
+
 
         Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
         app->receiveCAM (cam);
