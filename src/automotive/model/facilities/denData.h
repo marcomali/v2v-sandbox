@@ -95,6 +95,15 @@ public:
   long getDenmMgmtValidityDuration() const{long validityDuration = m_management.validityDuration!=NULL ? *(m_management.validityDuration) : DEN_DEFAULT_VALIDITY_MS;
                                            return validityDuration;}
 
+  /* Internals setters */
+  void setDenmRepetition(uint32_t repetitionDuration,uint32_t repetitionInterval) {m_internals.repetitionInterval=repetitionInterval; m_internals.repetitionDuration=repetitionDuration;}
+  void setDenmRepetitionInterval(uint32_t repetitionInterval) {m_internals.repetitionInterval=repetitionInterval;}
+  void setDenmRepetitionDuration(uint32_t repetitionDuration) {m_internals.repetitionDuration=repetitionDuration;}
+
+  /* Internal getters */
+  uint32_t getDenmRepetitionDuration() { return m_internals.repetitionDuration; }
+  uint32_t getDenmRepetitionInterval() { return m_internals.repetitionInterval; }
+
   /* Object integrity check */
   bool isDenDataRight();
 

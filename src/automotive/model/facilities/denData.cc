@@ -28,6 +28,10 @@ denData::denData()
 
   // Set m_internals isMandatorySet to false during the object creation
   m_internals.isMandatorySet=false;
+
+  // Initialize the repetition parameters to 0
+  m_internals.repetitionDuration=0;
+  m_internals.repetitionInterval=0;
 }
 
 void

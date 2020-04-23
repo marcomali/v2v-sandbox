@@ -22,6 +22,7 @@ def build(bld):
         'helper/appSample-helper.cc',
         'model/facilities/denBasicService.cc',
         'model/facilities/denData.cc',
+        'model/facilities/ITSSTableEntry.cc',
 
         #CAM+DENM sources
         '/model/asn1/AccelerationConfidence.c',
@@ -254,6 +255,7 @@ def build(bld):
         'model/facilities/denBasicService.h',
         'model/facilities/denData.h',
         'model/facilities/asn_utils.h',
+        'model/facilities/ITSSTableEntry.h',
 
         #CAM+DENM headers
         '/model/asn1/AccelerationConfidence.h',
