@@ -80,6 +80,9 @@ public:
   void setDenmMandatoryFields(long originatingStationID, long sequenceNumber, long detectionTime_ms, long latReference_deg, long longReference_deg, long altitude_m);
   void setDenmMandatoryFields_asn_types(ActionID_t actionID, TimestampIts_t detectionTime, ReferencePosition_t eventPosition);
 
+  /* receiveDENM setters */
+  void setDenmActionID(ActionID_t actionID) {m_management.actionID=actionID;}
+
   /* Optional information setters */
 
   /* Container getters */

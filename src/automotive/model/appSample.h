@@ -7,6 +7,9 @@
 
 #include "v2v-CAM-DENM-sender.h"
 
+#include "ns3/denBasicService.h"
+#include "ns3/socket.h"
+
 namespace ns3 {
 
 class appSample : public Application
@@ -43,10 +46,21 @@ public:
    */
   void receiveDENM (den_data_t denm);
 
+  void receiveDENM_new (denData denm);
+
 protected:
   virtual void DoDispose (void);
 
 private:
+
+  void testDENFacility(void);
+  DENBasicService m_denService;
+  Ipv4Address m_ipAddress;
+  Ptr<Socket> m_socket; //!< Socket TX
+  Ptr<Socket> m_socket2; //!< Socket RX
+  std::string m_model; //!< Communication Model (possible values: 80211p and cv2x)
+  void testDENData(void);
+
 
   /**
    * \brief chenge color of the vehicle.

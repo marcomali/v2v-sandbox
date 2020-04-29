@@ -168,6 +168,7 @@ main (int argc, char *argv[])
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
   AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
+  AppSampleHelper.SetAttribute ("Model", StringValue ("80211p"));
   AppSampleHelper.SetAttribute ("CSV", StringValue(csv_name));
 
   /* callback function for node creation */
@@ -212,7 +213,6 @@ main (int argc, char *argv[])
 
   /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
-  wifiPhy.EnablePcapAll ("prova");
 
   /*** 8. Start Simulation ***/
   Simulator::Stop (simulationTime);

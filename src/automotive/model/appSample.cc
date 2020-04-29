@@ -63,6 +63,11 @@ namespace ns3
             BooleanValue(false),
             MakeBooleanAccessor (&appSample::m_real_time),
             MakeBooleanChecker ())
+        .AddAttribute ("IpAddr",
+            "IpAddr",
+            Ipv4AddressValue ("10.0.0.1"),
+            MakeIpv4AddressAccessor (&appSample::m_ipAddress),
+            MakeIpv4AddressChecker ())
         .AddAttribute ("DENMIntertime",
             "Time between two consecutive DENMs",
             DoubleValue(0.5),
@@ -92,6 +97,11 @@ namespace ns3
             "CSV log name",
             StringValue (),
             MakeStringAccessor (&appSample::m_csv_name),
+            MakeStringChecker ())
+        .AddAttribute ("Model",
+            "Physical and MAC layer communication model",
+            StringValue (""),
+            MakeStringAccessor (&appSample::m_model),
             MakeStringChecker ())
         .AddAttribute ("Client",
             "TraCI client for SUMO",
@@ -136,6 +146,9 @@ namespace ns3
     m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
     m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
+    appSample::testDENFacility();
+
+    return;
 
     /* Schedule CAM dissemination */
     std::srand(Simulator::Now().GetNanoSeconds ());
@@ -172,7 +185,6 @@ namespace ns3
     Simulator::Remove(m_send_denm_ev);
     Simulator::Remove(m_send_cam_ev);
 
-
     if (!m_csv_name.empty ())
       {
         m_csv_ofstream_cam.close ();
@@ -194,7 +206,82 @@ namespace ns3
                   << std::endl;
         m_already_print=true;
       }
+
+    m_denService.cleanup();
   }
+
+  void
+  appSample::testDENFacility()
+  {
+    StationType_t stationtype;
+
+    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+    m_socket = Socket::CreateSocket (GetNode (), tid);
+
+    if (m_socket->Bind () == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket");
+      }
+
+    if(m_model=="80211p")
+      m_socket->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),19));
+    else if(m_model=="cv2x")
+      m_socket->Connect (InetSocketAddress(m_ipAddress,9));
+    else
+      NS_FATAL_ERROR ("No communication model set - check simulation script");
+    m_socket->SetAllowBroadcast (true);
+    m_socket->ShutdownRecv();
+
+    m_socket2 = Socket::CreateSocket (GetNode (), tid);
+
+    if (m_socket2->Bind (InetSocketAddress (Ipv4Address::GetAny (), 19)) == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket");
+      }
+    // Make the callback to handle received packets
+    m_socket2->SetRecvCallback (MakeCallback (&DENBasicService::receiveDENM, &m_denService));
+
+    /* Station Type */
+    if (m_type=="passenger")
+      stationtype = StationType_passengerCar;
+    else if (m_type=="emergency")
+      stationtype = StationType_specialVehicles;
+    else
+      stationtype = StationType_unknown;
+
+    m_denService.setSockets (m_socket,m_socket2);
+    m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
+    m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM_new,this,std::placeholders::_1));
+
+    Simulator::Schedule (Seconds (5), &appSample::testDENData, this);
+  }
+
+  void
+  appSample::testDENData()
+  {
+    ActionID_t actionid;
+    denData data;
+    DENBasicService_error_t trigger_retval;
+    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+    long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
+    long my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
+    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
+
+    data.setDenmRepetition (700000,70000);
+
+    trigger_retval=m_denService.appDENM_trigger (data,actionid);
+    if(trigger_retval!=DENM_NO_ERROR)
+      {
+        std::cout<<"Cannot trigger DENM. Error code: "<<trigger_retval<<std::endl;
+      }
+  }
+
+  void
+  appSample::receiveDENM_new (denData denm)
+  {
+    std::cout << "veh: "<< m_id <<" said to us: 'Good job guys!!!!!!!!'" << std::endl;
+  }
+
 
   void
   appSample::StopApplicationNow ()

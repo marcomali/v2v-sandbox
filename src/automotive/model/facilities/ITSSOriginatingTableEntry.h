@@ -1,10 +1,10 @@
-#ifndef ITSSTABLEENTRY_H
-#define ITSSTABLEENTRY_H
+#ifndef ITSSORIGINATINGTABLEENTRY_H
+#define ITSSORIGINATINGTABLEENTRY_H
 #include "ns3/DENM.h"
 #include "ns3/packet.h"
 
 namespace ns3 {
-  class ITSSTableEntry
+  class ITSSOriginatingTableEntry
   {
   public:
     typedef enum {
@@ -14,9 +14,9 @@ namespace ns3 {
       STATE_NEGATED
     } denm_table_state_t;
 
-    ITSSTableEntry();
-    ITSSTableEntry(Packet asnDenmPacket, denm_table_state_t status, ActionID_t actionID);
-    ITSSTableEntry(Packet asnDenmPacket, denm_table_state_t status, ActionID_t actionID, long referenceTime);
+    ITSSOriginatingTableEntry();
+    ITSSOriginatingTableEntry(Packet asnDenmPacket, denm_table_state_t status, ActionID_t actionID);
+    ITSSOriginatingTableEntry(Packet asnDenmPacket, denm_table_state_t status, ActionID_t actionID, long referenceTime);
 
     /* Setters */
     void setStatus(denm_table_state_t status) {m_status=status;}
@@ -32,8 +32,9 @@ namespace ns3 {
     Packet m_denm_encoded;
     denm_table_state_t m_status;
     long m_referenceTime;
+
   };
 
 }
 
-#endif // ITSSTABLEENTRY_H
+#endif // ITSSORIGINATINGTABLEENTRY_H

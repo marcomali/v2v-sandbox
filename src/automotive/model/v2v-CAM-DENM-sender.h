@@ -100,7 +100,7 @@ private:
   long compute_timestampIts ();
 
   Ptr<Socket> m_socket; //!< Socket TX
-  Ptr<Socket> m_socket2; //!< Soc  long m_sequence; //!< Sequence number of DENMs
+  Ptr<Socket> m_socket2; //!< Soc  long m_sequence;
   uint16_t m_port;  //!< Port on which client will listen for traffic information
   bool m_real_time; //!< To decide if using realtime scheduler
   bool m_asn; //!< To decide if ASN.1 is used

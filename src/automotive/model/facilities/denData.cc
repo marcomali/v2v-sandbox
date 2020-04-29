@@ -9,14 +9,23 @@ denData::denData()
   m_management.relevanceDistance=NULL;
   m_management.relevanceTrafficDirection=NULL;
 
+  memset(&m_management.eventPosition,0,sizeof(ReferencePosition_t));
+  memset(&m_management.detectionTime,0,sizeof(TimestampIts_t));
+  memset(&m_management.actionID,0,sizeof(ActionID_t));
+
   // m_situation optional fields initialization
   m_situation.linkedCause=NULL;
   m_situation.eventHistory=NULL;
+
+  memset(&m_situation.informationQuality,0,sizeof(InformationQuality_t));
+  memset(&m_situation.eventType,0,sizeof(CauseCode_t));
 
   // m_location optional fields initialization
   m_location.eventSpeed=NULL;
   m_location.eventPositionHeading=NULL;
   m_location.roadType=NULL;
+
+  memset(&m_location.traces,0,sizeof(Traces_t));
 
   // m_alacarte optional fields initialization
   m_alacarte.lanePosition=NULL;

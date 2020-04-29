@@ -345,6 +345,8 @@ main (int argc, char *argv[])
   AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
   AppSampleHelper.SetAttribute ("CSV", StringValue(csv_name));
+  AppSampleHelper.SetAttribute ("Model", StringValue ("cv2x"));
+
 
   /* callback function for node creation */
   int i=0;
@@ -358,6 +360,7 @@ main (int argc, char *argv[])
 
       /* Install Application */
       CamSenderHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddresses[i]));
+      AppSampleHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddresses[i]));
       i++;
 
       ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);

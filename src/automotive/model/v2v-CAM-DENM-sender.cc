@@ -62,7 +62,7 @@ namespace ns3
             MakeStringAccessor (&CAMDENMSender::m_server_addr),
             MakeStringChecker ())
         .AddAttribute ("Model",
-            "The prefix used to idefy vehicles in SUMO.",
+            "Physical and MAC layer communication model",
             StringValue (""),
             MakeStringAccessor (&CAMDENMSender::m_model),
             MakeStringChecker ())
