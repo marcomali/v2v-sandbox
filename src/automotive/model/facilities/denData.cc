@@ -44,11 +44,11 @@ denData::denData()
 }
 
 void
-denData::setDenmMandatoryFields (long detectionTime_ms, long latReference_deg, long longReference_deg)
+denData::setDenmMandatoryFields (long detectionTime_ms, double latReference_deg, double longReference_deg)
 {
   m_management.detectionTime = asnTimeConvert(detectionTime_ms);
-  m_management.eventPosition.latitude = (latReference_deg == MANDATORY_LAT_UNAVAILABLE ? MANDATORY_LAT_UNAVAILABLE : (Latitude_t) latReference_deg/DOT_ONE_MICRO);
-  m_management.eventPosition.longitude = (longReference_deg == MANDATORY_LONG_UNAVAILABLE ? MANDATORY_LONG_UNAVAILABLE : (Longitude_t) longReference_deg/DOT_ONE_MICRO);
+  m_management.eventPosition.latitude = (latReference_deg == MANDATORY_LAT_UNAVAILABLE ? MANDATORY_LAT_UNAVAILABLE : (Latitude_t) (latReference_deg*DOT_ONE_MICRO));
+  m_management.eventPosition.longitude = (longReference_deg == MANDATORY_LONG_UNAVAILABLE ? MANDATORY_LONG_UNAVAILABLE : (Longitude_t) (longReference_deg*DOT_ONE_MICRO));
   m_management.eventPosition.altitude.altitudeValue = AltitudeValue_unavailable;
   m_management.eventPosition.altitude.altitudeConfidence = AltitudeConfidence_unavailable;
 
@@ -56,10 +56,10 @@ denData::setDenmMandatoryFields (long detectionTime_ms, long latReference_deg, l
 }
 
 void
-denData::setDenmMandatoryFields (long detectionTime_ms, long latReference_deg, long longReference_deg, long altitude_m)
+denData::setDenmMandatoryFields (long detectionTime_ms, double latReference_deg, double longReference_deg, double altitude_m)
 {
   setDenmMandatoryFields (detectionTime_ms,latReference_deg,longReference_deg);
-  m_management.eventPosition.altitude.altitudeValue = altitude_m/CENTI;
+  m_management.eventPosition.altitude.altitudeValue = altitude_m*CENTI;
 }
 
 void
@@ -72,7 +72,7 @@ denData::setDenmMandatoryFields_asn_types (TimestampIts_t detectionTime, Referen
 }
 
 void
-denData::setDenmMandatoryFields (long originatingStationID, long sequenceNumber, long detectionTime_ms, long latReference_deg, long longReference_deg)
+denData::setDenmMandatoryFields (long originatingStationID, long sequenceNumber, long detectionTime_ms, double latReference_deg, double longReference_deg)
 {
   setDenmMandatoryFields (detectionTime_ms,latReference_deg,longReference_deg);
   m_management.actionID.originatingStationID = (StationID_t) originatingStationID;
@@ -80,7 +80,7 @@ denData::setDenmMandatoryFields (long originatingStationID, long sequenceNumber,
 }
 
 void
-denData::setDenmMandatoryFields (long originatingStationID, long sequenceNumber, long detectionTime_ms, long latReference_deg, long longReference_deg, long altitude_m)
+denData::setDenmMandatoryFields (long originatingStationID, long sequenceNumber, long detectionTime_ms, double latReference_deg, double longReference_deg, double altitude_m)
 {
   setDenmMandatoryFields (detectionTime_ms,latReference_deg,longReference_deg, altitude_m);
   m_management.actionID.originatingStationID = (StationID_t) originatingStationID;
@@ -93,6 +93,26 @@ denData::setDenmMandatoryFields_asn_types (ActionID_t actionID, TimestampIts_t d
 {
   setDenmMandatoryFields_asn_types(detectionTime,eventPosition);
   m_management.actionID = actionID;
+}
+
+int
+denData::setValidityDuration (long validityDuration_s)
+{
+  if(validityDuration_s<0 || validityDuration_s>86400)
+    {
+      return -2;
+    }
+
+  m_management.validityDuration=(ValidityDuration_t*) calloc(1, sizeof(ValidityDuration_t));
+
+  if(m_management.validityDuration==NULL)
+    {
+      return -1;
+    }
+
+  *m_management.validityDuration=validityDuration_s;
+
+  return 1;
 }
 
 INTEGER_t

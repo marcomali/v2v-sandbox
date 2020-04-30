@@ -60,7 +60,7 @@ private:
   Ptr<Socket> m_socket2; //!< Socket RX
   std::string m_model; //!< Communication Model (possible values: 80211p and cv2x)
   void testDENData(void);
-
+  void updateDENData(ActionID_t actionid);
 
   /**
    * \brief chenge color of the vehicle.
@@ -115,8 +115,6 @@ private:
   EventId m_speed_event; //!< Event to change the vehicle speed
   EventId m_send_denm_ev; //!< Event to send the DENM
   EventId m_send_cam_ev; //!< Event to send the CAM
-
-  EventId m_purple; //!< Event to send the CAM [TBR]
 
 };
 

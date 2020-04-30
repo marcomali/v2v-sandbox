@@ -263,23 +263,44 @@ namespace ns3
     denData data;
     DENBasicService_error_t trigger_retval;
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
-    long my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
-    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
+    double my_edge_hash = ((double)(std::hash<std::string>{}(my_edge)%1000)/1000);
+    double my_pos_on_edge = (double)(m_client->TraCIAPI::vehicle.getLanePosition (m_id)/1000);
+    std::cout << "SENT->edge:" << my_edge_hash << " pos:" << my_pos_on_edge << std::endl;
 
-    data.setDenmRepetition (700000,70000);
+    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
+    //data.setDenmRepetition (700000,70000);
 
     trigger_retval=m_denService.appDENM_trigger (data,actionid);
     if(trigger_retval!=DENM_NO_ERROR)
       {
         std::cout<<"Cannot trigger DENM. Error code: "<<trigger_retval<<std::endl;
       }
+
+    Simulator::Schedule (Seconds (2), &appSample::updateDENData, this, actionid);
   }
+
+  void
+  appSample::updateDENData(ActionID_t actionid)
+  {
+    denData data;
+    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+    double my_edge_hash = ((double)(std::hash<std::string>{}(my_edge)%1000)/1000);
+    double my_pos_on_edge = (double)(m_client->TraCIAPI::vehicle.getLanePosition (m_id)/1000);
+    std::cout << "SENT->edge:" << my_edge_hash << " pos:" << my_pos_on_edge << std::endl;
+
+    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
+    m_denService.appDENM_update (data,actionid);
+    Simulator::Schedule (Seconds (2), &appSample::updateDENData, this, actionid);
+  }
+
 
   void
   appSample::receiveDENM_new (denData denm)
   {
-    std::cout << "veh: "<< m_id <<" said to us: 'Good job guys!!!!!!!!'" << std::endl;
+   //std::cout << "veh: "<< m_id <<" said to us: 'Good job guys!!', I received a denm from: " << denm.getDenmHeaderStationID() << std::endl;
+   std::cout.precision(7);
+   std::cout << "RECEIVED->edge:" << ((double)denm.getDenmMgmtData_asn_types ().eventPosition.latitude/DOT_ONE_MICRO)<< " pos:" << ((double)denm.getDenmMgmtData_asn_types ().eventPosition.longitude/DOT_ONE_MICRO) << std::endl;
+
   }
 
 

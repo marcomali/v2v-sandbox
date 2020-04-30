@@ -68,6 +68,8 @@ main (int argc, char *argv[])
     {
       LogComponentEnable ("v2v-80211p", LOG_LEVEL_INFO);
       LogComponentEnable ("v2v-CAM-DENM-sender", LOG_LEVEL_INFO);
+      LogComponentEnable ("DENBasicService", LOG_LEVEL_INFO);
+
     }
 
   /* Use the realtime scheduler of ns3 */

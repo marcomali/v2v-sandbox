@@ -2,6 +2,9 @@
 #include "../asn1/asn_application.h"
 
 namespace ns3 {
+
+  NS_LOG_COMPONENT_DEFINE("DENBasicService");
+
   DENBasicService::DENBasicService()
   {
     m_station_id = ULONG_MAX;
@@ -58,6 +61,8 @@ namespace ns3 {
     if(asn_maybe_assign_optional_data<RelevanceTrafficDirection_t>(mgmt_data.relevanceTrafficDirection,&denm->denm.management.relevanceTrafficDirection)==-1)
         return DENM_ALLOC_ERROR;
     if(asn_maybe_assign_optional_data<Termination_t>(mgmt_data.termination,&denm->denm.management.termination)==-1)
+        return DENM_ALLOC_ERROR;
+    if(asn_maybe_assign_optional_data<ValidityDuration_t>(mgmt_data.validityDuration,&denm->denm.management.validityDuration)==-1)
         return DENM_ALLOC_ERROR;
 
     memset(&(denm->denm.management.referenceTime), 0, sizeof(denm->denm.management.referenceTime));
@@ -117,7 +122,7 @@ namespace ns3 {
       }
 
     /* 1. If validity is expired return DENM_T_O_VALIDITY_EXPIRED */
-    if (GetTimestampIts () > data.getDenmMgmtDetectionTime () + data.getDenmMgmtValidityDuration ())
+    if (GetTimestampIts () > data.getDenmMgmtDetectionTime () + (data.getDenmMgmtValidityDuration ()*MILLI))
         return DENM_T_O_VALIDITY_EXPIRED;
 
     /* 2. Assign unused actionID value */
@@ -138,6 +143,15 @@ namespace ns3 {
 
     /* 6. 7. Construct DENM and pass it to the lower layers (now UDP, in the future BTP and GeoNetworking, then UDP) */
     /** Encoding **/
+    char errbuff[ERRORBUFF_LEN];
+    size_t errlen=sizeof(errbuff);
+
+    if(asn_check_constraints(&asn_DEF_DENM,(DENM_t *)denm,errbuff,&errlen) == -1) {
+        NS_LOG_ERROR("Unable to validate the ASN.1 contraints for the received DENM."<<std::endl);
+        NS_LOG_ERROR("Details: " << errbuff << std::endl);
+        return DENM_ASN1_UPER_ENC_ERROR;
+    }
+
     asn_encode_to_new_buffer_result_t encode_result = asn_encode_to_new_buffer(NULL,ATS_UNALIGNED_BASIC_PER,&asn_DEF_DENM, denm);
     if (encode_result.result.encoded==-1)
       {
@@ -154,7 +168,7 @@ namespace ns3 {
 
     m_originatingTimerTable.emplace(map_index,std::tuple<Timer,Timer,Timer>());
 
-    DENBasicService::setDENTimer(std::get<V_O_VALIDITY_INDEX>(m_originatingTimerTable[map_index]),MilliSeconds(data.getDenmMgmtValidityDuration ()),&DENBasicService::T_O_ValidityStop,actionid);
+    DENBasicService::setDENTimer(std::get<V_O_VALIDITY_INDEX>(m_originatingTimerTable[map_index]),Seconds(data.getDenmMgmtValidityDuration ()),&DENBasicService::T_O_ValidityStop,actionid);
 
     /* 10. Calculate and start timers T_RepetitionDuration and T_Repetition when both parameters in denData are > 0 */
     if(data.getDenmRepetitionDuration ()>0 && data.getDenmRepetitionInterval ()>0)
@@ -192,14 +206,17 @@ namespace ns3 {
       }
 
     /* 1. If validity is expired return DENM_T_O_VALIDITY_EXPIRED */
-    if (GetTimestampIts () > data.getDenmMgmtDetectionTime () + data.getDenmMgmtValidityDuration ())
+    if (GetTimestampIts () > data.getDenmMgmtDetectionTime () + (data.getDenmMgmtValidityDuration ()*MILLI))
         return DENM_T_O_VALIDITY_EXPIRED;
 
     /* 2. Compare actionID in the application request with entries in the originating ITS-S message table (i.e. m_originatingITSSTable, implemented as a map) */
     /* Gather also the proper entry in the table, if available. */
+
+    T_Repetition_Mutex.lock();
     std::map<std::pair<unsigned long,long>, ITSSOriginatingTableEntry>::iterator entry_map_it = m_originatingITSSTable.find(map_index);
-    if (entry_map_it != m_originatingITSSTable.end())
+    if (entry_map_it == m_originatingITSSTable.end())
       {
+        T_Repetition_Mutex.unlock();
         return DENM_UNKNOWN_ACTIONID;
       }
 
@@ -213,14 +230,25 @@ namespace ns3 {
 
     if(fillDENM_rval!=DENM_NO_ERROR)
       {
+        T_Repetition_Mutex.unlock();
         return fillDENM_rval;
       }
 
     /* 7. 8. Construct DENM and pass it to the lower layers (now UDP, in the future BTP and GeoNetworking, then UDP) */
     /** Encoding **/
-    asn_encode_to_new_buffer_result_t encode_result = asn_encode_to_new_buffer(NULL,ATS_UNALIGNED_BASIC_PER,&asn_DEF_DENM, &denm);
+    char errbuff[ERRORBUFF_LEN];
+    size_t errlen=sizeof(errbuff);
+
+    if(asn_check_constraints(&asn_DEF_DENM,denm,errbuff,&errlen) == -1) {
+        NS_LOG_ERROR("Unable to validate the ASN.1 contraints for the received DENM."<<std::endl);
+        NS_LOG_ERROR("Details: " << errbuff << std::endl);
+        return DENM_ASN1_UPER_ENC_ERROR;
+    }
+
+    asn_encode_to_new_buffer_result_t encode_result = asn_encode_to_new_buffer(NULL,ATS_UNALIGNED_BASIC_PER,&asn_DEF_DENM, denm);
     if (encode_result.result.encoded==-1)
       {
+        T_Repetition_Mutex.unlock();
         return DENM_ASN1_UPER_ENC_ERROR;
       }
 
@@ -231,7 +259,7 @@ namespace ns3 {
     entry_map_it->second.setDENMPacket(*packet);
 
     /* 10. Start timer T_O_Validity. */
-    DENBasicService::setDENTimer(std::get<V_O_VALIDITY_INDEX>(m_originatingTimerTable[map_index]),MilliSeconds(data.getDenmMgmtValidityDuration ()),&DENBasicService::T_O_ValidityStop,actionid);
+    DENBasicService::setDENTimer(std::get<V_O_VALIDITY_INDEX>(m_originatingTimerTable[map_index]),Seconds(data.getDenmMgmtValidityDuration ()),&DENBasicService::T_O_ValidityStop,actionid);
 
     /* 11. Calculate and start timers T_RepetitionDuration and T_Repetition when both parameters in denData are > 0 */
     if(data.getDenmRepetitionDuration ()>0 && data.getDenmRepetitionInterval ()>0)
@@ -239,6 +267,8 @@ namespace ns3 {
         DENBasicService::setDENTimer(std::get<T_REPETITION_INDEX>(m_originatingTimerTable[map_index]),MilliSeconds(data.getDenmRepetitionInterval()),&DENBasicService::T_RepetitionStop,actionid);
         DENBasicService::setDENTimer(std::get<T_REPETITION_DURATION_INDEX>(m_originatingTimerTable[map_index]),MilliSeconds(data.getDenmRepetitionDuration ()),&DENBasicService::T_RepetitionDurationStop,actionid);
       }
+
+    T_Repetition_Mutex.unlock();
 
     return DENM_NO_ERROR;
   }
@@ -267,26 +297,35 @@ namespace ns3 {
     std::pair <unsigned long, long> map_index = std::make_pair((unsigned long)actionid.originatingStationID,(long)actionid.sequenceNumber);
 
     /* 1. If validity is expired return DENM_T_O_VALIDITY_EXPIRED */
-    if (GetTimestampIts () > data.getDenmMgmtDetectionTime () + data.getDenmMgmtValidityDuration ())
+    if (GetTimestampIts () > data.getDenmMgmtDetectionTime () + (data.getDenmMgmtValidityDuration ()*MILLI))
         return DENM_T_O_VALIDITY_EXPIRED;
 
     /* 2. Compare actionID in the application request with entries in the originating ITS-S message table and the receiving ITS-S message table */
+    T_Repetition_Mutex.lock();
+
     std::map<std::pair<unsigned long,long>, ITSSOriginatingTableEntry>::iterator entry_originating_table = m_originatingITSSTable.find(map_index);
     /* 2a. If actionID exists in the originating ITS-S message table and the entry state is ACTIVE, then set termination to isCancellation.*/
     if (entry_originating_table != m_originatingITSSTable.end())
       {
+        T_Repetition_Mutex.unlock();
         return DENM_UNKNOWN_ACTIONID_ORIGINATING;
       }
     else if(entry_originating_table->second.getStatus()==ITSSOriginatingTableEntry::STATE_ACTIVE)
       {
         asn_termination=Termination_isCancellation;
         if(asn_maybe_assign_optional_data<Termination_t>(&asn_termination,&denm->denm.management.termination)==-1)
+          {
+            T_Repetition_Mutex.unlock();
             return DENM_ALLOC_ERROR;
+          }
         else
-          termination=0;
+          {
+            termination=0;
+          }
       }
     else
       {
+        T_Repetition_Mutex.unlock();
         return DENM_NON_ACTIVE_ACTIONID_ORIGINATING;
       }
 
@@ -294,18 +333,25 @@ namespace ns3 {
     std::map<std::pair<unsigned long,long>, ITSSReceivingTableEntry>::iterator entry_receiving_table = m_receivingITSSTable.find(map_index);
     if (entry_receiving_table != m_receivingITSSTable.end())
       {
+        T_Repetition_Mutex.unlock();
         return DENM_UNKNOWN_ACTIONID_RECEIVING;
       }
     else if(entry_receiving_table->second.getStatus()==ITSSReceivingTableEntry::STATE_ACTIVE)
       {
         asn_termination=Termination_isNegation;
         if(asn_maybe_assign_optional_data<Termination_t>(&asn_termination,&denm->denm.management.termination)==-1)
+          {
+            T_Repetition_Mutex.unlock();
             return DENM_ALLOC_ERROR;
+          }
         else
-          termination=1;
+          {
+            termination=1;
+          }
       }
     else
       {
+        T_Repetition_Mutex.unlock();
         return DENM_NON_ACTIVE_ACTIONID_RECEIVING;
       }
 
@@ -315,6 +361,7 @@ namespace ns3 {
 
         if(referenceTime==-1)
           {
+            T_Repetition_Mutex.unlock();
             return DENM_WRONG_TABLE_DATA;
           }
       }
@@ -327,6 +374,7 @@ namespace ns3 {
     fillDENM_rval=fillDENM(denm,data,actionid,referenceTime);
     if(fillDENM_rval!=DENM_NO_ERROR)
       {
+        T_Repetition_Mutex.unlock();
         return fillDENM_rval;
       }
 
@@ -340,9 +388,19 @@ namespace ns3 {
 
     /* 5. Construct DENM and pass it to the lower layers (now UDP, in the future BTP and GeoNetworking, then UDP) */
     /** Encoding **/
+    char errbuff[ERRORBUFF_LEN];
+    size_t errlen=sizeof(errbuff);
+
+    if(asn_check_constraints(&asn_DEF_DENM,denm,errbuff,&errlen) == -1) {
+        NS_LOG_ERROR("Unable to validate the ASN.1 contraints for the received DENM."<<std::endl);
+        NS_LOG_ERROR("Details: " << errbuff << std::endl);
+        return DENM_ASN1_UPER_ENC_ERROR;
+    }
+
     asn_encode_to_new_buffer_result_t encode_result = asn_encode_to_new_buffer(NULL,ATS_UNALIGNED_BASIC_PER,&asn_DEF_DENM, &denm);
     if (encode_result.result.encoded==-1)
       {
+        T_Repetition_Mutex.unlock();
         return DENM_ASN1_UPER_ENC_ERROR;
       }
 
@@ -363,7 +421,7 @@ namespace ns3 {
       }
 
     /* 7. Start timer T_O_Validity. */
-    DENBasicService::setDENTimer(std::get<V_O_VALIDITY_INDEX>(entry_timers_table->second),MilliSeconds(data.getDenmMgmtValidityDuration ()),&DENBasicService::T_O_ValidityStop,actionid);
+    DENBasicService::setDENTimer(std::get<V_O_VALIDITY_INDEX>(entry_timers_table->second),Seconds(data.getDenmMgmtValidityDuration ()),&DENBasicService::T_O_ValidityStop,actionid);
 
     /* 8. Calculate and start timers T_RepetitionDuration and T_Repetition when both parameters in denData are > 0 */
     if(data.getDenmRepetitionDuration ()>0 && data.getDenmRepetitionInterval ()>0)
@@ -372,6 +430,7 @@ namespace ns3 {
         DENBasicService::setDENTimer(std::get<T_REPETITION_DURATION_INDEX>(entry_timers_table->second),MilliSeconds(data.getDenmRepetitionDuration ()),&DENBasicService::T_RepetitionDurationStop,actionid);
       }
 
+    T_Repetition_Mutex.unlock();
     return DENM_NO_ERROR;
   }
 
@@ -395,13 +454,14 @@ namespace ns3 {
 
     if(!CheckMainAttributes ())
       {
-        NS_FATAL_ERROR("DENBasicService has unset parameters. Cannot receive any data.");
+        NS_LOG_ERROR("DENBasicService has unset parameters. Cannot receive any data.");
         return;
       }
 
     /* Try to check if the received packet is really a DENM */
     if (buffer[1]!=FIX_DENMID)
       {
+        NS_LOG_ERROR("Warning: received a message which has messageID '"<<buffer[1]<<"' but '1' was expected.");
         return;
       }
 
@@ -414,6 +474,7 @@ namespace ns3 {
     } while(decode_result.code==RC_WMORE);
 
     if(decode_result.code!=RC_OK || decoded_==NULL) {
+        NS_LOG_ERROR("Warning: unable to decode a received DENM.");
         return;
       }
 
@@ -421,13 +482,18 @@ namespace ns3 {
 
     /* Compute T_R_Validity expiration time */
 
-    validityDuration = decoded_denm->denm.management.validityDuration != NULL ? *(decoded_denm->denm.management.validityDuration) : DEN_DEFAULT_VALIDITY_MS;
+    validityDuration = decoded_denm->denm.management.validityDuration != NULL ? *(decoded_denm->denm.management.validityDuration) : DEN_DEFAULT_VALIDITY_S;
     asn_INTEGER2long (&decoded_denm->denm.management.detectionTime,&detectionTime_long);
     asn_INTEGER2long (&decoded_denm->denm.management.referenceTime,&referenceTime_long);
 
+    long now = GetTimestampIts ();
     /* 1. If validity is expired return without performing further steps */
-    if (GetTimestampIts () > detectionTime_long + (long)validityDuration)
+    if (now > detectionTime_long + ((long)validityDuration*MILLI))
+      {
+        NS_LOG_ERROR("Warning: received a DENM with an expired validity. Detection time (ms): "<<detectionTime_long<<"; validity duration (s): "<<(long)validityDuration);
+        NS_LOG_ERROR("Condition: '"<<now<<" > "<< detectionTime_long + ((long)validityDuration*MILLI)<<"' is true. Omitting further operations.");
         return;
+      }
 
     /* Lookup entries in the receiving ITS-S message table with the received actionID */
     actionID=decoded_denm->denm.management.actionID;
@@ -444,6 +510,7 @@ namespace ns3 {
            *(decoded_denm->denm.management.termination)==Termination_isNegation))
           {
             /* if yes, discard the received DENM and omit execution of further steps. */
+            NS_LOG_ERROR("Warning: received a new DENM with termination data (either cancelled or negated). Omitting further reception steps.");
             return;
           }
         else
@@ -463,6 +530,9 @@ namespace ns3 {
         if (referenceTime_long < stored_reference_time || detectionTime_long < stored_detection_time)
           {
             /* i. if yes, discard received DENM and omit execution of further steps. */
+            NS_LOG_ERROR("Warning: received a new DENM with reference time < entry reference time or  detection time < stored detection time.");
+            NS_LOG_ERROR("reference time (ms): "<<referenceTime_long<<"; stored value: "<<stored_reference_time
+                    <<"; detection time (ms): "<<detectionTime_long<<"; store value: "<<stored_detection_time);
             return;
           }
         else
@@ -478,6 +548,7 @@ namespace ns3 {
                ))
               {
                 /* 1. If yes, discard received DENM and omit execution of further steps. */
+                NS_LOG_ERROR("Warning: received a repeated DENM. It won't produce any new effect on the involved vehicle.");
                 return;
               }
             else
@@ -496,7 +567,20 @@ namespace ns3 {
       m_T_R_Validity_Table[map_index] = Timer();
     }
 
-    DENBasicService::setDENTimer(m_T_R_Validity_Table[map_index],MilliSeconds((long)validityDuration),&DENBasicService::T_R_ValidityStop,actionID);
+    DENBasicService::setDENTimer(m_T_R_Validity_Table[map_index],Seconds((long)validityDuration),&DENBasicService::T_R_ValidityStop,actionID);
+
+    /* Fill den_data with the received information */
+    DENBasicService::fillDenDataHeader (decoded_denm->header, den_data);
+    DENBasicService::fillDenDataManagement (decoded_denm->denm.management, den_data);
+
+    if(decoded_denm->denm.location!=NULL)
+      DENBasicService::fillDenDataLocation (*decoded_denm->denm.location, den_data);
+
+    if(decoded_denm->denm.situation!=NULL)
+      DENBasicService::fillDenDataSituation (*decoded_denm->denm.situation, den_data);
+
+    if(decoded_denm->denm.alacarte!=NULL)
+      DENBasicService::fillDenDataAlacarte (*decoded_denm->denm.alacarte, den_data);
 
     m_DENReceiveCallback(den_data);
   }
@@ -516,6 +600,7 @@ namespace ns3 {
   void
   DENBasicService::T_O_ValidityStop(ActionID_t entry_actionid)
   {
+    T_Repetition_Mutex.lock ();
     std::pair <unsigned long, long> map_index = std::make_pair((unsigned long)entry_actionid.originatingStationID,(long)entry_actionid.sequenceNumber);
 
     std::get<T_REPETITION_INDEX>(m_originatingTimerTable[map_index]).Cancel();
@@ -524,6 +609,7 @@ namespace ns3 {
     // When an entry expires, discard also the information related to its (now stopped) timers
     m_originatingTimerTable.erase (map_index);
     m_originatingITSSTable.erase (map_index);
+    T_Repetition_Mutex.unlock ();
   }
 
   void
@@ -537,10 +623,12 @@ namespace ns3 {
   void
   DENBasicService::T_RepetitionStop(ActionID_t entry_actionid)
   {
+    T_Repetition_Mutex.lock();
     std::pair <unsigned long, long> map_index = std::make_pair((unsigned long)entry_actionid.originatingStationID,(long)entry_actionid.sequenceNumber);
+    T_Repetition_Mutex.unlock ();
 
     Ptr<Packet> packet = Create<Packet> (m_originatingITSSTable[map_index].getDENMPacket ());
-    m_socket_tx->Send(packet);
+    m_socket_tx->Send (packet);
 
     // Restart timer
     std::get<T_REPETITION_INDEX>(m_originatingTimerTable[map_index]).Schedule();
@@ -549,11 +637,13 @@ namespace ns3 {
   void
   DENBasicService::T_R_ValidityStop(ActionID_t entry_actionid)
   {
+    T_Repetition_Mutex.lock();
     std::pair <unsigned long, long> map_index = std::make_pair((unsigned long)entry_actionid.originatingStationID,(long)entry_actionid.sequenceNumber);
 
     // When an entry expires, discard also the information related to its (now stopped) timers
     m_T_R_Validity_Table.erase (map_index);
     m_receivingITSSTable.erase (map_index);
+    T_Repetition_Mutex.unlock ();
   }
 
   /* This cleanup function will attemp to stop any possibly still-running timer */
@@ -575,5 +665,61 @@ namespace ns3 {
       {
          m_T_R_Validity_Table_it->second.Cancel();
       }
+  }
+
+  void
+  DENBasicService::fillDenDataHeader(ItsPduHeader_t denm_header, denData &denm_data)
+  {
+      denm_data.setDenmHeader (denm_header.messageID,denm_header.protocolVersion,denm_header.stationID);
+  }
+
+  void
+  DENBasicService::fillDenDataManagement(ManagementContainer_t denm_mgmt_container, denData &denm_data)
+  {
+    denData::denDataManagement management;
+    management.detectionTime = denm_mgmt_container.detectionTime;
+    management.eventPosition = denm_mgmt_container.eventPosition;
+    management.validityDuration = denm_mgmt_container.validityDuration;
+    management.transmissionInterval = denm_mgmt_container.transmissionInterval;
+    management.actionID = denm_mgmt_container.actionID;
+    management.termination = denm_mgmt_container.termination;
+    management.relevanceDistance = denm_mgmt_container.relevanceDistance;
+    management.relevanceTrafficDirection = denm_mgmt_container.relevanceTrafficDirection;
+    denm_data.setDenmMgmtData_asn_types (management);
+  }
+
+  void
+  DENBasicService::fillDenDataSituation(SituationContainer_t denm_situation_container, denData &denm_data)
+  {
+    denData::denDataSituation situation;
+    situation.informationQuality = denm_situation_container.informationQuality;
+    situation.eventType = denm_situation_container.eventType;
+    situation.linkedCause = denm_situation_container.linkedCause;
+    situation.eventHistory = denm_situation_container.eventHistory;
+    denm_data.setDenmSituationData_asn_types (situation);
+  }
+
+  void
+  DENBasicService::fillDenDataLocation(LocationContainer_t denm_location_container, denData &denm_data)
+  {
+    denData::denDataLocation location;
+    location.eventSpeed = denm_location_container.eventSpeed;
+    location.eventPositionHeading = denm_location_container.eventPositionHeading;
+    location.traces = denm_location_container.traces;
+    location.roadType = denm_location_container.roadType;
+    denm_data.setDenmLocationData_asn_types (location);
+  }
+
+  void
+  DENBasicService::fillDenDataAlacarte(AlacarteContainer_t denm_alacarte_container, denData &denm_data)
+  {
+    denData::denDataAlacarte alacarte;
+    alacarte.lanePosition = denm_alacarte_container.lanePosition;
+    alacarte.impactReduction = denm_alacarte_container.impactReduction;
+    alacarte.externalTemperature = denm_alacarte_container.externalTemperature;
+    alacarte.roadWorks = denm_alacarte_container.roadWorks;
+    alacarte.positioningSolution = denm_alacarte_container.positioningSolution;
+    alacarte.stationaryVehicle = denm_alacarte_container.stationaryVehicle;
+    denm_data.setDenmAlacarteData_asn_types (alacarte);
   }
 }

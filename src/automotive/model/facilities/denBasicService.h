@@ -8,6 +8,7 @@
 #include "ns3/core-module.h"
 #include "ns3/socket.h"
 #include <functional>
+#include <mutex>
 
 //Epoch time at 2004-01-01
 #define TIME_SHIFT 1072915200000
@@ -93,6 +94,18 @@ namespace ns3 {
     std::map<std::pair<unsigned long,long>,std::tuple<Timer,Timer,Timer>> m_originatingTimerTable;
     std::map<std::pair<unsigned long,long>,Timer> m_T_R_Validity_Table;
 
+    /* den_data private fillers (ASN.1 types), used within "receiveDENM" */
+    void fillDenDataHeader(ItsPduHeader_t denm_header, denData &denm_data);
+    void fillDenDataManagement(ManagementContainer_t denm_mgmt_container, denData &denm_data);
+    void fillDenDataSituation(SituationContainer_t denm_situation_container, denData &denm_data);
+    void fillDenDataLocation(LocationContainer_t denm_location_container, denData &denm_data);
+    void fillDenDataAlacarte(AlacarteContainer_t denm_alacarte_container, denData &denm_data);
+
+    /*
+    * Mutex to protect m_originatingITSSTable when appDENM_update() and the callback for the expiration of the T_Repetion timer may try to
+    * access the map concurrently, resulting in a thread-unsafe code.
+    */
+    std::mutex T_Repetition_Mutex;
   };
 
 }
