@@ -537,78 +537,78 @@ namespace ns3
   CAMDENMSender::Decode_asn_denm(uint8_t *buffer,uint32_t size)
   {
     /** Decoding **/
-    void *decoded_=NULL;
-    asn_dec_rval_t rval;
-    den_data_t denm;
+//    void *decoded_=NULL;
+//    asn_dec_rval_t rval;
+//    den_data_t denm;
 
-    rval = uper_decode(0, &asn_DEF_DENM, &decoded_, buffer, size, 0, 1);
+//    rval = uper_decode(0, &asn_DEF_DENM, &decoded_, buffer, size, 0, 1);
 
-    if (rval.code == RC_FAIL)
-      {
-        std::cout << "DENM ASN.1 decoding failed!" << std::endl;
-        return;
-      }
+//    if (rval.code == RC_FAIL)
+//      {
+//        std::cout << "DENM ASN.1 decoding failed!" << std::endl;
+//        return;
+//      }
 
-    DENM_t *decoded = (DENM_t *) decoded_;
+//    DENM_t *decoded = (DENM_t *) decoded_;
 
-    if (decoded->header.messageID==FIX_DENMID)
-      {
-        denm.proto = (int)decoded->header.protocolVersion;
-        denm.stationid = (long)decoded->header.stationID;
-        denm.messageid = (int)decoded->header.messageID;
+//    if (decoded->header.messageID==FIX_DENMID)
+//      {
+//        denm.proto = (int)decoded->header.protocolVersion;
+//        denm.stationid = (long)decoded->header.stationID;
+//        denm.messageid = (int)decoded->header.messageID;
 
-        denm.sequence = (int)decoded->denm.management.actionID.sequenceNumber;
-        denm.actionid = (long)decoded->denm.management.actionID.originatingStationID;
+//        denm.sequence = (int)decoded->denm.management.actionID.sequenceNumber;
+//        denm.actionid = (long)decoded->denm.management.actionID.originatingStationID;
 
-        long detection_time;
-        memset(&detection_time, 0, sizeof(detection_time));
-        asn_INTEGER2long (&decoded->denm.management.detectionTime,&detection_time);
-        denm.detectiontime =detection_time;
+//        long detection_time;
+//        memset(&detection_time, 0, sizeof(detection_time));
+//        asn_INTEGER2long (&decoded->denm.management.detectionTime,&detection_time);
+//        denm.detectiontime =detection_time;
 
-        long ref_time;
-        memset(&ref_time, 0, sizeof(ref_time));
-        asn_INTEGER2long (&decoded->denm.management.referenceTime,&ref_time);
-        denm.referencetime = ref_time;
+//        long ref_time;
+//        memset(&ref_time, 0, sizeof(ref_time));
+//        asn_INTEGER2long (&decoded->denm.management.referenceTime,&ref_time);
+//        denm.referencetime = ref_time;
 
-        denm.stationtype = (long)decoded->denm.management.stationType;
+//        denm.stationtype = (long)decoded->denm.management.stationType;
 
-        denm.evpos_lat = (long)decoded->denm.management.eventPosition.latitude;
-        denm.evpos_long = (long)decoded->denm.management.eventPosition.longitude;
+//        denm.evpos_lat = (long)decoded->denm.management.eventPosition.latitude;
+//        denm.evpos_long = (long)decoded->denm.management.eventPosition.longitude;
 
 //        std::cout << "temp "<< *decoded->denm.alacarte->externalTemperature << std::endl;
 
-        Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
-        app->receiveDENM (denm);
-      }
-    ASN_STRUCT_FREE(asn_DEF_DENM,decoded);
+        //Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+        //app->receiveDENM (denm);
+      //}
+    //ASN_STRUCT_FREE(asn_DEF_DENM,decoded);
   }
 
   void
   CAMDENMSender::Decode_normal_denm(uint8_t *buffer)
   {
-    den_data_t denm;
-    std::vector<std::string> values;
-    std::string s = std::string ((char*) buffer);
-    //std::cout << "Packet received - content:" << s << std::endl;
-    std::stringstream ss(s);
-    std::string element;
-    while (std::getline(ss, element, ',')) {
-        values.push_back (element);
-      }
+//    den_data_t denm;
+//    std::vector<std::string> values;
+//    std::string s = std::string ((char*) buffer);
+//    //std::cout << "Packet received - content:" << s << std::endl;
+//    std::stringstream ss(s);
+//    std::string element;
+//    while (std::getline(ss, element, ',')) {
+//        values.push_back (element);
+//      }
 
-    if(values[0]=="DENM")
-      {
-        denm.messageid = FIX_DENMID;
-        denm.detectiontime =  std::stol(values[1]);
-        denm.referencetime = std::stol(values[2]);
-        denm.stationid = std::stoi(values[3]);
-        denm.sequence = std::stoi(values[4]);
-        denm.evpos_lat = std::stol(values[5]);
-        denm.evpos_long = std::stol(values[6]);
+//    if(values[0]=="DENM")
+//      {
+//        denm.messageid = FIX_DENMID;
+//        denm.detectiontime =  std::stol(values[1]);
+//        denm.referencetime = std::stol(values[2]);
+//        denm.stationid = std::stoi(values[3]);
+//        denm.sequence = std::stoi(values[4]);
+//        denm.evpos_lat = std::stol(values[5]);
+//        denm.evpos_long = std::stol(values[6]);
 
-        Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
-        app->receiveDENM (denm);
-      }
+//        Ptr<appSample> app = GetNode()->GetApplication (1)->GetObject<appSample> ();
+//        //app->receiveDENM (denm);
+//      }
   }
 
   struct timespec
@@ -628,17 +628,6 @@ namespace ns3
     return tv;
   }
 
-  long
-  CAMDENMSender::compute_timestampIts ()
-  {
-    /* To get millisec since  2004-01-01T00:00:00:000Z */
-    auto time = std::chrono::system_clock::now(); // get the current time
-    auto since_epoch = time.time_since_epoch(); // get the duration since epoch
-    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch); // convert it in millisecond since epoch
-
-    long elapsed_since_2004 = millis.count() - TIME_SHIFT; // in TIME_SHIFT we saved the millisec from epoch to 2004-01-01
-    return elapsed_since_2004;
-  }
 
 }
 

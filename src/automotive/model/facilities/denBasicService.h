@@ -10,9 +10,6 @@
 #include <functional>
 #include <mutex>
 
-//Epoch time at 2004-01-01
-#define TIME_SHIFT 1072915200000
-
 #define V_O_VALIDITY_INDEX 0
 #define T_REPETITION_INDEX 1
 #define T_REPETITION_DURATION_INDEX 2

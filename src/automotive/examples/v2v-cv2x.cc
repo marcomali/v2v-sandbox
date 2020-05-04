@@ -338,8 +338,6 @@ main (int argc, char *argv[])
   CamSenderHelper.SetAttribute ("Model", StringValue ("cv2x"));
 
   AppSampleHelper.SetAttribute ("Client", PointerValue (sumoClient));
-  AppSampleHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
-  AppSampleHelper.SetAttribute ("ASN", BooleanValue (asn));
   AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
   AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));

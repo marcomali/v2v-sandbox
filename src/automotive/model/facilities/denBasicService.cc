@@ -685,6 +685,7 @@ namespace ns3 {
     management.termination = denm_mgmt_container.termination;
     management.relevanceDistance = denm_mgmt_container.relevanceDistance;
     management.relevanceTrafficDirection = denm_mgmt_container.relevanceTrafficDirection;
+    management.referenceTime = denm_mgmt_container.referenceTime;
     denm_data.setDenmMgmtData_asn_types (management);
   }
 

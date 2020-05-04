@@ -12,6 +12,7 @@ denData::denData()
   memset(&m_management.eventPosition,0,sizeof(ReferencePosition_t));
   memset(&m_management.detectionTime,0,sizeof(TimestampIts_t));
   memset(&m_management.actionID,0,sizeof(ActionID_t));
+  memset(&m_management.referenceTime,0,sizeof(TimestampIts_t));
 
   // m_situation optional fields initialization
   m_situation.linkedCause=NULL;
@@ -47,8 +48,8 @@ void
 denData::setDenmMandatoryFields (long detectionTime_ms, double latReference_deg, double longReference_deg)
 {
   m_management.detectionTime = asnTimeConvert(detectionTime_ms);
-  m_management.eventPosition.latitude = (latReference_deg == MANDATORY_LAT_UNAVAILABLE ? MANDATORY_LAT_UNAVAILABLE : (Latitude_t) (latReference_deg*DOT_ONE_MICRO));
-  m_management.eventPosition.longitude = (longReference_deg == MANDATORY_LONG_UNAVAILABLE ? MANDATORY_LONG_UNAVAILABLE : (Longitude_t) (longReference_deg*DOT_ONE_MICRO));
+  m_management.eventPosition.latitude = (latReference_deg == MANDATORY_LAT_UNAVAILABLE ? MANDATORY_LAT_UNAVAILABLE : (Latitude_t) (latReference_deg));
+  m_management.eventPosition.longitude = (longReference_deg == MANDATORY_LONG_UNAVAILABLE ? MANDATORY_LONG_UNAVAILABLE : (Longitude_t) (longReference_deg));
   m_management.eventPosition.altitude.altitudeValue = AltitudeValue_unavailable;
   m_management.eventPosition.altitude.altitudeConfidence = AltitudeConfidence_unavailable;
 
@@ -59,7 +60,7 @@ void
 denData::setDenmMandatoryFields (long detectionTime_ms, double latReference_deg, double longReference_deg, double altitude_m)
 {
   setDenmMandatoryFields (detectionTime_ms,latReference_deg,longReference_deg);
-  m_management.eventPosition.altitude.altitudeValue = altitude_m*CENTI;
+  m_management.eventPosition.altitude.altitudeValue = altitude_m;
 }
 
 void

@@ -24,6 +24,7 @@ def build(bld):
         'model/facilities/denData.cc',
         'model/facilities/ITSSOriginatingTableEntry.cc',
         'model/facilities/ITSSReceivingTableEntry.cc',
+        'model/facilities/asn_utils.cc',
 
         #CAM+DENM sources
         '/model/asn1/AccelerationConfidence.c',

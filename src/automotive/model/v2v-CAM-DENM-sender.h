@@ -4,6 +4,7 @@
 #include "ns3/socket.h"
 #include "utils.h"
 #include "ns3/appSample.h"
+#include "ns3/asn_utils.h"
 
 #include <chrono>
 
@@ -93,11 +94,6 @@ private:
    * @brief This function compute the timestamps
   */
   struct timespec compute_timestamp();
-
-  /**
-   * @brief This function compute the milliseconds elapsed from 2004-01-01
-  */
-  long compute_timestampIts ();
 
   Ptr<Socket> m_socket; //!< Socket TX
   Ptr<Socket> m_socket2; //!< Soc  long m_sequence;

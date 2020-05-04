@@ -3,6 +3,8 @@
 
 #include "ns3/traci-client.h"
 #include "ns3/application.h"
+#include "ns3/asn_utils.h"
+
 #include <unordered_map>
 
 #include "v2v-CAM-DENM-sender.h"
@@ -44,23 +46,20 @@ public:
    *
    * \param the struct containing the info of the packet that was received.
    */
-  void receiveDENM (den_data_t denm);
-
-  void receiveDENM_new (denData denm);
+  void receiveDENM (denData denm);
 
 protected:
   virtual void DoDispose (void);
 
 private:
 
-  void testDENFacility(void);
   DENBasicService m_denService;
   Ipv4Address m_ipAddress;
   Ptr<Socket> m_socket; //!< Socket TX
   Ptr<Socket> m_socket2; //!< Socket RX
   std::string m_model; //!< Communication Model (possible values: 80211p and cv2x)
-  void testDENData(void);
-  void updateDENData(ActionID_t actionid);
+
+  void UpdateDenm(ActionID_t actionid);
 
   /**
    * \brief chenge color of the vehicle.
@@ -74,11 +73,6 @@ private:
   */
   struct timespec compute_timestamp();
 
-  /**
-   * @brief This function compute the milliseconds elapsed from 2004-01-01
-  */
-  long compute_timestampIts ();
-
   void TriggerCam(void);
   void TriggerDenm(void);
 
@@ -88,15 +82,13 @@ private:
   Ptr<TraciClient> m_client; //!< TraCI client
   std::string m_id; //!< vehicle id
   std::string m_type; //!< vehicle type
-  bool m_lon_lat; //!< Use LonLat instead of XY
-  bool m_asn; //!< To decide if ASN.1 is used
   double m_max_speed; //!< To save initial veh max speed
   bool m_send_denm;  //!< To decide if DENM dissemination is active or not
   bool m_send_cam;  //!< To decide if CAM dissemination is active or not
   double m_cam_intertime; //!< Time between two consecutives CAMs
   double m_denm_intertime; //!< Time between two consecutives CAMs
   bool m_print_summary; //!< To print a small summary when vehicle leaves the simulation
-  bool m_already_print; //!< To avoid printing two summary
+  bool m_already_print; //!< To avoid printing two summaries
   bool m_real_time; //!< To decide wheter to use realtime scheduler
   std::string m_csv_name; //!< CSV log file name
   std::ofstream m_csv_ofstream_cam;
@@ -104,7 +96,6 @@ private:
 
   //[TBR]
   std::ofstream m_csv_ofstream_speed;
-
 
   /* Counters */
   int m_cam_sent;

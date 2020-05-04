@@ -68,8 +68,7 @@ main (int argc, char *argv[])
     {
       LogComponentEnable ("v2v-80211p", LOG_LEVEL_INFO);
       LogComponentEnable ("v2v-CAM-DENM-sender", LOG_LEVEL_INFO);
-      LogComponentEnable ("DENBasicService", LOG_LEVEL_INFO);
-
+      LogComponentEnable ("DENBasicService", LOG_LEVEL_ALL);
     }
 
   /* Use the realtime scheduler of ns3 */
@@ -164,8 +163,6 @@ main (int argc, char *argv[])
   CamSenderHelper.SetAttribute ("Model", StringValue ("80211p"));
 
   AppSampleHelper.SetAttribute ("Client", PointerValue (sumoClient));
-  AppSampleHelper.SetAttribute ("LonLat", BooleanValue (send_lon_lat));
-  AppSampleHelper.SetAttribute ("ASN", BooleanValue (asn));
   AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
   AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));

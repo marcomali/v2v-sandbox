@@ -48,11 +48,6 @@ namespace ns3
         .SetParent<Application> ()
         .SetGroupName ("Applications")
         .AddConstructor<appSample> ()
-        .AddAttribute ("LonLat",
-            "If it is true, position are sent through lonlat (not XY).",
-            BooleanValue (false),
-            MakeBooleanAccessor (&appSample::m_lon_lat),
-            MakeBooleanChecker ())
         .AddAttribute ("CAMIntertime",
             "Time between two consecutive CAMs",
             DoubleValue(0.1),
@@ -73,11 +68,6 @@ namespace ns3
             DoubleValue(0.5),
             MakeDoubleAccessor (&appSample::m_denm_intertime),
             MakeDoubleChecker<double> ())
-        .AddAttribute ("ASN",
-            "If true, it uses ASN.1 to encode and decode CAMs and DENMs",
-            BooleanValue(false),
-            MakeBooleanAccessor (&appSample::m_asn),
-            MakeBooleanChecker ())
         .AddAttribute ("SendCam",
             "If it is true, the branch sending the CAM is activated.",
             BooleanValue (true),
@@ -140,15 +130,50 @@ namespace ns3
   appSample::StartApplication (void)
   {
     NS_LOG_FUNCTION(this);
+
     /* Save the vehicles informations */
     m_id = m_client->GetVehicleId (this->GetNode ());
-
     m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
     m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
-    appSample::testDENFacility();
+    /* Create the Sockets for TX and RX */
+    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
+    m_socket = Socket::CreateSocket (GetNode (), tid);
+    if (m_socket->Bind () == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket");
+      }
 
-    return;
+    if(m_model=="80211p")
+      m_socket->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),19));
+    else if(m_model=="cv2x")
+      m_socket->Connect (InetSocketAddress(m_ipAddress,9));
+    else
+      NS_FATAL_ERROR ("No communication model set - check simulation script");
+    m_socket->SetAllowBroadcast (true);
+    m_socket->ShutdownRecv();
+
+    m_socket2 = Socket::CreateSocket (GetNode (), tid);
+    if (m_socket2->Bind (InetSocketAddress (Ipv4Address::GetAny (), 19)) == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket");
+      }
+    // Make the callback to handle received packets
+    m_socket2->SetRecvCallback (MakeCallback (&DENBasicService::receiveDENM, &m_denService));
+
+    /* Set Station Type in DENBasicService */
+    StationType_t stationtype;
+    if (m_type=="passenger")
+      stationtype = StationType_passengerCar;
+    else if (m_type=="emergency")
+      stationtype = StationType_specialVehicles;
+    else
+      stationtype = StationType_unknown;
+
+    /* Set sockets, callback and station properties in DENBasicService */
+    m_denService.setSockets (m_socket,m_socket2);
+    m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
+    m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM,this,std::placeholders::_1));
 
     /* Schedule CAM dissemination */
     std::srand(Simulator::Now().GetNanoSeconds ());
@@ -157,6 +182,7 @@ namespace ns3
          double desync = ((double)std::rand()/RAND_MAX);
          m_send_cam_ev = Simulator::Schedule (Seconds (desync), &appSample::TriggerCam, this);
       }
+
     /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
     if (m_type=="emergency" && m_send_denm)
       {
@@ -211,98 +237,30 @@ namespace ns3
   }
 
   void
-  appSample::testDENFacility()
+  appSample::UpdateDenm(ActionID_t actionid)
   {
-    StationType_t stationtype;
-
-    TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-    m_socket = Socket::CreateSocket (GetNode (), tid);
-
-    if (m_socket->Bind () == -1)
-      {
-        NS_FATAL_ERROR ("Failed to bind client socket");
-      }
-
-    if(m_model=="80211p")
-      m_socket->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),19));
-    else if(m_model=="cv2x")
-      m_socket->Connect (InetSocketAddress(m_ipAddress,9));
-    else
-      NS_FATAL_ERROR ("No communication model set - check simulation script");
-    m_socket->SetAllowBroadcast (true);
-    m_socket->ShutdownRecv();
-
-    m_socket2 = Socket::CreateSocket (GetNode (), tid);
-
-    if (m_socket2->Bind (InetSocketAddress (Ipv4Address::GetAny (), 19)) == -1)
-      {
-        NS_FATAL_ERROR ("Failed to bind client socket");
-      }
-    // Make the callback to handle received packets
-    m_socket2->SetRecvCallback (MakeCallback (&DENBasicService::receiveDENM, &m_denService));
-
-    /* Station Type */
-    if (m_type=="passenger")
-      stationtype = StationType_passengerCar;
-    else if (m_type=="emergency")
-      stationtype = StationType_specialVehicles;
-    else
-      stationtype = StationType_unknown;
-
-    m_denService.setSockets (m_socket,m_socket2);
-    m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
-    m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM_new,this,std::placeholders::_1));
-
-    Simulator::Schedule (Seconds (5), &appSample::testDENData, this);
-  }
-
-  void
-  appSample::testDENData()
-  {
-    ActionID_t actionid;
-    denData data;
-    DENBasicService_error_t trigger_retval;
-    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    double my_edge_hash = ((double)(std::hash<std::string>{}(my_edge)%1000)/1000);
-    double my_pos_on_edge = (double)(m_client->TraCIAPI::vehicle.getLanePosition (m_id)/1000);
-    std::cout << "SENT->edge:" << my_edge_hash << " pos:" << my_pos_on_edge << std::endl;
-
-    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
-    //data.setDenmRepetition (700000,70000);
-
-    trigger_retval=m_denService.appDENM_trigger (data,actionid);
-    if(trigger_retval!=DENM_NO_ERROR)
-      {
-        std::cout<<"Cannot trigger DENM. Error code: "<<trigger_retval<<std::endl;
-      }
-
-    Simulator::Schedule (Seconds (2), &appSample::updateDENData, this, actionid);
-  }
-
-  void
-  appSample::updateDENData(ActionID_t actionid)
-  {
+    DENBasicService_error_t update_retval;
     denData data;
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    double my_edge_hash = ((double)(std::hash<std::string>{}(my_edge)%1000)/1000);
-    double my_pos_on_edge = (double)(m_client->TraCIAPI::vehicle.getLanePosition (m_id)/1000);
-    std::cout << "SENT->edge:" << my_edge_hash << " pos:" << my_pos_on_edge << std::endl;
+    long my_edge_hash = ((std::hash<std::string>{}(my_edge)%900000000));
+    long my_pos_on_edge = (m_client->TraCIAPI::vehicle.getLanePosition (m_id));
 
     data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
-    m_denService.appDENM_update (data,actionid);
-    Simulator::Schedule (Seconds (2), &appSample::updateDENData, this, actionid);
+    update_retval = m_denService.appDENM_update (data,actionid);
+    if(update_retval!=DENM_NO_ERROR)
+      {
+        NS_LOG_ERROR("Cannot update DENM. Error code: " << update_retval);
+      }
+    else
+      {
+        m_denm_sent++;
+      }
+
+    if(m_denm_intertime>0)
+      {
+        Simulator::Schedule (Seconds (m_denm_intertime), &appSample::UpdateDenm, this, actionid);
+      }
   }
-
-
-  void
-  appSample::receiveDENM_new (denData denm)
-  {
-   //std::cout << "veh: "<< m_id <<" said to us: 'Good job guys!!', I received a denm from: " << denm.getDenmHeaderStationID() << std::endl;
-   std::cout.precision(7);
-   std::cout << "RECEIVED->edge:" << ((double)denm.getDenmMgmtData_asn_types ().eventPosition.latitude/DOT_ONE_MICRO)<< " pos:" << ((double)denm.getDenmMgmtData_asn_types ().eventPosition.longitude/DOT_ONE_MICRO) << std::endl;
-
-  }
-
 
   void
   appSample::StopApplicationNow ()
@@ -315,48 +273,37 @@ namespace ns3
   appSample::TriggerDenm ()
   {
     /* Build DENM data */
-    /* FIX: implement other containers, and use them!! */
-    long timestamp;
-    if(m_real_time)
-      {
-        timestamp = appSample::compute_timestampIts ()%65536;
-      }
-    else
-      {
-        struct timespec tv = compute_timestamp ();
-        timestamp = (tv.tv_nsec/1000000)%65536;
-      }
 
-    den_data_t denm;
-    denm.detectiontime = timestamp;
-    denm.messageid = FIX_DENMID;
-    denm.proto = FIX_PROT_VERS;
+    ActionID_t actionid;
+    denData data;
+    DENBasicService_error_t trigger_retval;
 
-    /* Station Type */
-    if (m_type=="passenger")
-      denm.stationtype = StationType_passengerCar;
-    else if (m_type=="emergency")
-      denm.stationtype = StationType_specialVehicles;
-    else
-      denm.stationtype = StationType_unknown;
-
-    /* In order to encode the info about the edge, the string containing the edgeId is hashed and placed inside latitude
-     * This is not allowed from ETSI (of course..) but we needed a way to transmit those infos in a DENM */
+    /*
+     * Insert the edge value and position on edge in the eventposition of DENM message.
+     * As there are no fields, in a standard DENM, to code this information, we used this
+     * workaround to include those values.
+     * The module operation (%) is performed in order to obtain ASN.1 in-range values.
+    */
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
-    long my_pos_on_edge = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
-    denm.evpos_lat = my_edge_hash;
-    denm.evpos_long = my_pos_on_edge;
-    denm.validity = 10; // seconds
-    denm.stationid = std::stol (m_id.substr (3));
+    long my_edge_hash = ((std::hash<std::string>{}(my_edge)%900000000));
+    long my_pos_on_edge = (m_client->TraCIAPI::vehicle.getLanePosition (m_id));
 
-    Ptr<CAMDENMSender> app = GetNode()->GetApplication (0)->GetObject<CAMDENMSender> ();
-    int app_ret = app->SendDenm(denm);
+    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
 
-    if (app_ret)
-      m_denm_sent++;
+    trigger_retval=m_denService.appDENM_trigger (data,actionid);
+    if(trigger_retval!=DENM_NO_ERROR)
+      {
+        NS_LOG_ERROR("Cannot trigger DENM. Error code: " << trigger_retval);
+      }
+    else
+      {
+        m_denm_sent++;
+      }
 
-    m_send_denm_ev = Simulator::Schedule (Seconds (0.5), &appSample::TriggerDenm, this);
+    if(m_denm_intertime>0)
+      {
+        Simulator::Schedule (Seconds (m_denm_intertime), &appSample::UpdateDenm, this, actionid);
+      }
   }
 
   void
@@ -393,8 +340,8 @@ namespace ns3
 
     /* Positions - the standard is followed only if m_lonlat is true */
     libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
-    if (m_lon_lat)
-        pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
+
+    pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
 
     //altitude [0,01 m]
     cam.altitude_conf = AltitudeConfidence_unavailable;
@@ -472,7 +419,7 @@ namespace ns3
   }
 
   void
-  appSample::receiveDENM (den_data_t denm)
+  appSample::receiveDENM (denData denm)
   {
     m_denm_received++;
 
@@ -490,16 +437,20 @@ namespace ns3
      * by choosing the "rightmost" (i.e. with index 0), in order to facilitate the emergency vehicle takeover. For visualization purposes, it will change
      * color during this phase.
      */
-    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
-    long my_edge_hash = (long)std::hash<std::string>{}(my_edge)%10000;
-    long my_edge_pos = m_client->TraCIAPI::vehicle.getLanePosition (m_id);
 
+
+    std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
+    long my_edge_hash = ((std::hash<std::string>{}(my_edge)%900000000));
+    long my_pos_on_edge = (m_client->TraCIAPI::vehicle.getLanePosition (m_id));
+
+    double denm_edge_hash = ((double) denm.getDenmMgmtLatitude ());
+    double denm_pos_on_edge = ((double)denm.getDenmMgmtLongitude ());
 
     if (m_type!="emergency")
       {
-        if (denm.evpos_lat == my_edge_hash)
+        if (denm_edge_hash == my_edge_hash)
           {
-            if (denm.evpos_long < my_edge_pos)
+            if (denm_pos_on_edge < my_pos_on_edge)
               {
                 /* Slowdown only if you are not in the takeover lane,
                  * otherwise the ambulance may be stuck behind */
@@ -526,7 +477,7 @@ namespace ns3
                     m_speed_event = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
                   }
               }
-            else if (denm.evpos_long - 50 < my_edge_pos)
+            else if (denm_pos_on_edge - 50 < my_pos_on_edge)
               {
                 m_client->TraCIAPI::vehicle.changeLane (m_id,0,3);
                 m_client->TraCIAPI::vehicle.setMaxSpeed (m_id, m_max_speed*0.5);
@@ -552,10 +503,10 @@ namespace ns3
             struct timespec tv = compute_timestamp ();
             timestamp = (tv.tv_nsec/1000000)%65536;
           }
-        long delay = timestamp - denm.referencetime;
-        m_csv_ofstream_denm << denm.messageid << "," << denm.sequence << ",";
-        m_csv_ofstream_denm << denm.referencetime << "," << denm.detectiontime << ",";
-        m_csv_ofstream_denm << denm.stationid << "," << delay << std::endl;
+        long delay = timestamp - denm.getDenmMgmtReferenceTime();
+        m_csv_ofstream_denm << denm.getDenmHeaderMessageID() << "," << denm.getDenmActionID().sequenceNumber << ",";
+        m_csv_ofstream_denm << denm.getDenmMgmtReferenceTime() << "," << denm.getDenmMgmtDetectionTime ()<< ",";
+        m_csv_ofstream_denm << denm.getDenmHeaderStationID() << "," << delay << std::endl;
       }
   }
 
@@ -585,17 +536,7 @@ namespace ns3
     return tv;
   }
 
-  long
-  appSample::compute_timestampIts ()
-  {
-    /* To get millisec since  2004-01-01T00:00:00:000Z */
-    auto time = std::chrono::system_clock::now(); // get the current time
-    auto since_epoch = time.time_since_epoch(); // get the duration since epoch
-    auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch); // convert it in millisecond since epoch
 
-    long elapsed_since_2004 = millis.count() - TIME_SHIFT; // in TIME_SHIFT we saved the millisec from epoch to 2004-01-01
-    return elapsed_since_2004;
-  }
 }
 
 

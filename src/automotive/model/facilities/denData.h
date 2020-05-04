@@ -4,7 +4,6 @@
 #include "asn_utils.h"
 #include "ns3/DENM.h"
 #include <cstring>
-#include <chrono>
 
 typedef struct CauseCode sCauseCode_t;
 typedef struct EventHistory sEventHistory_t;
@@ -46,6 +45,7 @@ public:
       Termination_t *termination;
       RelevanceDistance_t *relevanceDistance;
       RelevanceTrafficDirection_t *relevanceTrafficDirection;
+      TimestampIts_t referenceTime;
       // StationType_t stationType; // Defined during the creation of the DEN Basic service object
   } denDataManagement;
 
@@ -106,6 +106,7 @@ public:
   long getDenmHeaderStationID() {return m_header.stationID;}
 
   /* Container getters */
+  denDataHeader getDenmHeader_asn_types() const{return m_header;}
   denDataManagement getDenmMgmtData_asn_types() const{return m_management;}
   denDataSituation getDenmSituationData_asn_types() const{return m_situation;}
   denDataLocation getDenmLocationData_asn_types() const{return m_location;}
@@ -117,6 +118,20 @@ public:
 
   long getDenmMgmtValidityDuration() const{long validityDuration = m_management.validityDuration!=NULL ? *(m_management.validityDuration) : DEN_DEFAULT_VALIDITY_S;
                                            return validityDuration;}
+
+  long getDenmMgmtReferenceTime() const{long referenceTime=0;
+                                        asn_INTEGER2long (&m_management.referenceTime,&referenceTime);
+                                        return referenceTime;}
+
+  long getDenmMgmtLatitude() const{return m_management.eventPosition.latitude;}
+  long getDenmMgmtLongitude() const{return m_management.eventPosition.longitude;}
+  long getDenmMgmtAltitude() const{return m_management.eventPosition.altitude.altitudeValue;}
+
+  long getDenmHeaderMessageID() const{return m_header.messageID;}
+  long getDenmHeaderProtocolVersion () const{return m_header.protocolVersion;}
+  unsigned long getDenmHeaderStationID () const{return (unsigned long)m_header.stationID;}
+
+  ActionID_t getDenmActionID() const{return m_management.actionID;}
 
   /* Internals setters */
   void setDenmRepetition(uint32_t repetitionDuration,uint32_t repetitionInterval) {m_internals.repetitionInterval=repetitionInterval; m_internals.repetitionDuration=repetitionDuration;}

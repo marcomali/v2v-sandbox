@@ -17,10 +17,6 @@
 #define DEF_ACCELERATION    161
 #define DEF_HEADING         3601
 
-
-//Epoch time at 2004-01-01
-#define TIME_SHIFT 1072915200000
-
 namespace ns3 {
   typedef struct _den_data_t
   {
