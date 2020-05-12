@@ -242,6 +242,7 @@ namespace ns3
     cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleLength.vehicleLengthValue = (VehicleLengthValue_t) data.length_value;
     cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleWidth = (VehicleWidth_t) data.width;
 
+
     /* Other needed fields */
     cam->header.protocolVersion = data.proto;
     cam->header.stationID = (StationID_t) data.id;

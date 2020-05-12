@@ -136,6 +136,8 @@ namespace ns3
     m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
     m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
+
+
     /* Create the Sockets for TX and RX */
     TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
     m_socket = Socket::CreateSocket (GetNode (), tid);
