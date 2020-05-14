@@ -2,19 +2,25 @@
 
 namespace ns3
 {
-  VDPTraCI::VDPTraCI(Ptr<TraciClient> traci_client)
+  VDPTraCI::VDPTraCI()
+  {
+    m_traci_client=NULL;
+    m_id="(null)";
+  }
+
+  VDPTraCI::VDPTraCI(Ptr<TraciClient> traci_client, std::string node_id)
   {
     m_traci_client=traci_client;
 
-    m_id = traci_client->GetVehicleId (this->GetNode ());
+    m_id = node_id;
 
     /* Length and width of car [0.1 m] */
     m_vehicle_length.vehicleLengthValue = m_traci_client->TraCIAPI::vehicle.getLength (m_id)*DECI;
     m_vehicle_length.vehicleLengthConfidenceIndication = VehicleLengthConfidenceIndication_unavailable;
 
     // ETSI TS 102 894-2 V1.2.1 - A.92 (Length greater than 102,2 m should be set to 102,2 m)
-    if(m_vehicle_length>1022) {
-        m_vehicle_length=1022;
+    if(m_vehicle_length.vehicleLengthValue>1022) {
+        m_vehicle_length.vehicleLengthValue=1022;
       }
 
     m_vehicle_width = m_traci_client->TraCIAPI::vehicle.getWidth (m_id)*DECI;
@@ -36,7 +42,7 @@ namespace ns3
 
     /* Position */
     libsumo::TraCIPosition pos=m_traci_client->TraCIAPI::vehicle.getPosition(m_id);
-    pos=m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
+    pos=m_traci_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
 
     // longitude WGS84 [0,1 microdegree]
     CAMdata.longitude=(Longitude_t)(pos.x*DOT_ONE_MICRO);
@@ -68,8 +74,7 @@ namespace ns3
     CAMdata.curvature.curvatureConfidence = CurvatureConfidence_unavailable;
 
     /* Length and Width [0.1 m] */
-    CAMdata.VehicleLength.vehicleLengthValue = m_vehicle_length;
-    CAMdata.VehicleLength.vehicleLengthConfidenceIndication = VehicleLengthConfidenceIndication_unavailable;
+    CAMdata.VehicleLength = m_vehicle_length;
     CAMdata.VehicleWidth = m_vehicle_width;
 
     /* Yaw Rate */
@@ -79,11 +84,10 @@ namespace ns3
     return CAMdata;
   }
 
-
   LanePosition_t *
   VDPTraCI::getLanePosition()
   {
-    LanePosition_t * laneposition = calloc(1,sizeof(LanePosition_t));
+    LanePosition_t * laneposition = (LanePosition_t *) calloc(1,sizeof(LanePosition_t));
     int laneIndex;
 
     if(!laneposition)
@@ -91,7 +95,7 @@ namespace ns3
         return NULL;
       }
 
-    laneIndex=m_traci_client->TraCIAPI.vehicle.getLaneIndex (m_id);
+    laneIndex=m_traci_client->TraCIAPI::vehicle.getLaneIndex (m_id);
 
     // We add '1' as sumo lane indeces start from '0', while
     // LanePosition_t uses '1' as the index for the first rightmost

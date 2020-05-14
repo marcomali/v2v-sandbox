@@ -8,9 +8,14 @@ namespace ns3 {
   class VDPTraCI : public VDP
   {
   public:
-    VDPTraCI(Ptr<TraciClient> traci_client);
+    VDPTraCI(Ptr<TraciClient> traci_client, std::string node_id);
+    VDPTraCI();
 
     CAM_mandatory_data_t getCAMMandatoryData();
+
+    double getSpeedValue() {return m_traci_client->TraCIAPI::vehicle.getSpeed (m_id);}
+    double getTravelledDistance() {return m_traci_client->TraCIAPI::vehicle.getDistance (m_id);}
+    double getHeadingValue() {return m_traci_client->TraCIAPI::vehicle.getAngle (m_id);}
 
     AccelerationControl_t *getAccelerationControl() {return NULL;}
     LanePosition_t *getLanePosition();
@@ -20,8 +25,8 @@ namespace ns3 {
     PerformanceClass_t *getPerformanceClass() {return NULL;}
     CenDsrcTollingZone_t *getCenDsrcTollingZone() {return NULL;}
 
-    template
-    <typename T> virtual void vdpFree(T* optional_field) {
+    virtual void vdpFree(void* optional_field)
+    {
       if(optional_field!=NULL)
         {
           free(optional_field);
@@ -33,7 +38,7 @@ namespace ns3 {
     SpecialVehicleContainer_t *getSpecialVehicleContainer() {return NULL;}
 
     private:
-      std::string m_vehicle_id;
+      std::string m_id;
       Ptr<TraciClient> m_traci_client;
   };
 }
