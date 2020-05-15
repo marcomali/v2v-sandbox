@@ -147,7 +147,7 @@ namespace ns3 {
     size_t errlen=sizeof(errbuff);
 
     if(asn_check_constraints(&asn_DEF_DENM,(DENM_t *)denm,errbuff,&errlen) == -1) {
-        NS_LOG_ERROR("Unable to validate the ASN.1 contraints for the received DENM."<<std::endl);
+        NS_LOG_ERROR("Unable to validate the ASN.1 contraints for the current DENM."<<std::endl);
         NS_LOG_ERROR("Details: " << errbuff << std::endl);
         return DENM_ASN1_UPER_ENC_ERROR;
     }

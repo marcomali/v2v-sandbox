@@ -3,6 +3,7 @@
 
 #define FIX_PROT_VERS       0x01
 #define FIX_DENMID          0x01
+#define FIX_CAMID           0x02
 #define DECI                10
 #define CENTI               100
 #define MILLI               1000

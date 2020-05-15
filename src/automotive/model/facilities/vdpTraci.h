@@ -25,7 +25,7 @@ namespace ns3 {
     PerformanceClass_t *getPerformanceClass() {return NULL;}
     CenDsrcTollingZone_t *getCenDsrcTollingZone() {return NULL;}
 
-    virtual void vdpFree(void* optional_field)
+    void vdpFree(void* optional_field)
     {
       if(optional_field!=NULL)
         {

@@ -8,7 +8,6 @@
 #define OFFSET_Y            0
 
 //ASN.1 utils
-#define FIX_CAMID           2
 #define DEF_LATITUDE        90000001
 #define DEF_LONGITUDE       1800000001
 #define DEF_LENGTH          1022
