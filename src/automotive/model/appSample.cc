@@ -136,8 +136,6 @@ namespace ns3
     m_type = m_client->TraCIAPI::vehicle.getVehicleClass (m_id);
     m_max_speed = m_client->TraCIAPI::vehicle.getMaxSpeed (m_id);
 
-
-
     /* Create the Sockets for TX and RX */
     TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
     m_socket = Socket::CreateSocket (GetNode (), tid);
@@ -177,12 +175,22 @@ namespace ns3
     m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
     m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM,this,std::placeholders::_1));
 
+    /* Set sockets, callback, station properties and TraCI VDP in CABasicService */
+    m_caService.setSocketTx (m_socket);
+    m_caService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
+    m_caService.addCARxCallback (std::bind(&appSample::receiveCAM,this,std::placeholders::_1));
+
+    m_vdp.setProperties(m_client,m_id);
+    m_caService.setVDP(&m_vdp);
+
     /* Schedule CAM dissemination */
     std::srand(Simulator::Now().GetNanoSeconds ());
     if (m_send_cam)
       {
          double desync = ((double)std::rand()/RAND_MAX);
-         m_send_cam_ev = Simulator::Schedule (Seconds (desync), &appSample::TriggerCam, this);
+         m_caService.startCamDissemination(desync);
+
+         //m_send_cam_ev = Simulator::Schedule (Seconds (desync), &appSample::TriggerCam, this);
       }
 
     /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
@@ -196,7 +204,7 @@ namespace ns3
       {
         m_csv_ofstream_cam.open (m_csv_name+"-"+m_id+"-CAM.csv",std::ofstream::trunc);
         m_csv_ofstream_denm.open (m_csv_name+"-"+m_id+"-DENM.csv",std::ofstream::trunc);
-        m_csv_ofstream_cam << "messageId,camId,timestamp,latitude,longitude,altitude,heading,speed,acceleration,MeasuredDelayms" << std::endl;
+        m_csv_ofstream_cam << "messageId,camId,timestamp,latitude,longitude,heading,speed,acceleration" << std::endl;
         m_csv_ofstream_denm << "messageId,sequence,referenceTime,detectionTime,stationId,MeasuredDelayms" << std::endl;
       }
 
@@ -309,115 +317,23 @@ namespace ns3
   }
 
   void
-  appSample::TriggerCam()
-  {
-    //[TBR]
-    if (m_type=="emergency"&&!m_csv_name.empty ())
-        m_csv_ofstream_speed << m_client->TraCIAPI::vehicle.getSpeed (m_id) << std::endl;
-
-    /* Build CAM data */
-    ca_data_t cam;
-
-    /* Generation delta time [ms since 2004-01-01]. In case the scheduler is not real time, we have to use simulation time,
-     * otherwise timestamps will be not reliable */
-    long timestamp;
-    if(m_real_time)
-      {
-        timestamp = compute_timestampIts ()%65536;
-      }
-    else
-      {
-        struct timespec tv = compute_timestamp ();
-        timestamp = (tv.tv_nsec/1000000)%65536;
-      }
-    cam.timestamp = timestamp;
-
-    /* Station Type */
-    if (m_type=="passenger")
-      cam.type = StationType_passengerCar;
-    else if (m_type=="emergency")
-      cam.type = StationType_specialVehicles;
-    else
-      cam.type = StationType_unknown;
-
-    /* Positions - the standard is followed only if m_lonlat is true */
-    libsumo::TraCIPosition pos = m_client->TraCIAPI::vehicle.getPosition(m_id);
-
-    pos = m_client->TraCIAPI::simulation.convertXYtoLonLat (pos.x,pos.y);
-
-    //altitude [0,01 m]
-    cam.altitude_conf = AltitudeConfidence_unavailable;
-    cam.altitude_value = AltitudeValue_unavailable;
-
-    //latitude WGS84 [0,1 microdegree]
-    cam.latitude = (long)retValue(pos.y*DOT_ONE_MICRO,DEF_LATITUDE,0,0);
-    //longitude WGS84 [0,1 microdegree]
-    cam.longitude = (long)retValue(pos.x*DOT_ONE_MICRO,DEF_LONGITUDE,0,0);
-
-    /* Heading WGS84 north [0.1 degree] */
-    double angle = m_client->TraCIAPI::vehicle.getAngle (m_id);
-    cam.heading_value = (double)retValue (angle*DECI,DEF_HEADING,0,0);
-    cam.heading_conf = HeadingConfidence_unavailable;
-
-    /* Speed [0.01 m/s] */
-    double speed=m_client->TraCIAPI::vehicle.getSpeed(m_id);
-    cam.speed_value = (long)retValue(speed*CENTI,DEF_SPEED,0,0);
-    cam.speed_conf = SpeedConfidence_unavailable;
-
-    /* Acceleration [0.1 m/s^2] */
-    double acc=m_client->TraCIAPI::vehicle.getAcceleration (m_id);
-    cam.longAcc_value = (long)retValue(acc*DECI,DEF_ACCELERATION,0,0);
-    cam.longAcc_conf = AccelerationConfidence_unavailable;
-
-    /* Length and width of car [0.1 m] */
-    double veh_length = m_client->TraCIAPI::vehicle.getLength (m_id);
-    cam.length_value = (double)retValue (veh_length*DECI,DEF_LENGTH,0,0);
-    cam.length_conf = VehicleLengthConfidenceIndication_unavailable;
-    double veh_width = m_client->TraCIAPI::vehicle.getWidth (m_id);
-    cam.width = (long)retValue (veh_width*DECI,DEF_WIDTH,0,0);
-
-    /* Proto version, id and msg id */
-    cam.proto = FIX_PROT_VERS;
-    cam.id = std::stol (m_id.substr (3));
-    cam.messageid = FIX_CAMID;
-
-    //[tbr]
-    struct timespec tv2 = compute_timestamp ();
-    cam.latitude = (tv2.tv_nsec/1000)%900000000;
-
-    Ptr<CAMDENMSender> app = GetNode()->GetApplication (0)->GetObject<CAMDENMSender> ();
-    app->SendCam (cam);
-
-    m_cam_sent++;
-
-    m_send_cam_ev = Simulator::Schedule (Seconds (m_cam_intertime), &appSample::TriggerCam, this);
-  }
-
-  void
-  appSample::receiveCAM (ca_data_t cam)
+  appSample::receiveCAM (CAM_t *cam)
   {
     /* Implement CAM strategy here */
    m_cam_received++;
-   long timestamp;
-   if(m_real_time)
-     {
-       timestamp = compute_timestampIts ()%65536;
-     }
-   else
-     {
-       struct timespec tv = compute_timestamp ();
-       //timestamp = (tv.tv_nsec/1000000)%65536; // [TBR]
-       timestamp = (tv.tv_nsec/1000)%900000000;//[TBR]
-     }
+
    if (!m_csv_name.empty ())
      {
-       long delay = timestamp-cam.latitude;//[tbr]
-       m_csv_ofstream_cam << cam.messageid << "," << cam.id << ",";
-       m_csv_ofstream_cam << cam.timestamp << "," << (double)cam.latitude/DOT_ONE_MICRO << ",";
-       m_csv_ofstream_cam << (double)cam.longitude/DOT_ONE_MICRO << "," << (cam.altitude_value!=AltitudeValue_unavailable ? (double)cam.altitude_value/DOT_ONE_MICRO : AltitudeValue_unavailable) << ",";
-       m_csv_ofstream_cam << (double)cam.heading_value/DECI << "," << (double)cam.speed_value/CENTI << ",";
-       m_csv_ofstream_cam << (double)cam.longAcc_value/DECI << "," << delay << std::endl;
+       // messageId,camId,timestamp,latitude,longitude,heading,speed,acceleration
+       m_csv_ofstream_cam << cam->header.messageID << "," << cam->header.stationID << ",";
+       m_csv_ofstream_cam << cam->cam.generationDeltaTime << "," << (double)cam->cam.camParameters.basicContainer.referencePosition.latitude/DOT_ONE_MICRO << ",";
+       m_csv_ofstream_cam << (double)cam->cam.camParameters.basicContainer.referencePosition.longitude/DOT_ONE_MICRO << "," ;
+       m_csv_ofstream_cam << (double)cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.heading.headingValue/DECI << "," << (double)cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.speed.speedValue/CENTI << ",";
+       m_csv_ofstream_cam << (double)cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration.longitudinalAccelerationValue/DECI << std::endl;
      }
+
+   // Free the received CAM data structure
+   ASN_STRUCT_FREE(asn_DEF_CAM,cam);
   }
 
   void

@@ -67,7 +67,7 @@ main (int argc, char *argv[])
   if (verbose)
     {
       LogComponentEnable ("v2v-80211p", LOG_LEVEL_INFO);
-      LogComponentEnable ("v2v-CAM-DENM-sender", LOG_LEVEL_INFO);
+      LogComponentEnable ("CABasicService", LOG_LEVEL_INFO);
       LogComponentEnable ("DENBasicService", LOG_LEVEL_ALL);
     }
 
@@ -155,12 +155,12 @@ main (int argc, char *argv[])
   sumoClient->SetAttribute ("SumoWaitForSocket", TimeValue (Seconds (1.0)));
 
   /*** 7. Setup interface and application for dynamic nodes ***/
-  CAMSenderHelper CamSenderHelper (9);
+//  CAMSenderHelper CamSenderHelper (9);
   appSampleHelper AppSampleHelper;
 
-  CamSenderHelper.SetAttribute ("ASN", BooleanValue (asn));
-  CamSenderHelper.SetAttribute ("RealTime", BooleanValue (realtime));
-  CamSenderHelper.SetAttribute ("Model", StringValue ("80211p"));
+//  CamSenderHelper.SetAttribute ("ASN", BooleanValue (asn));
+//  CamSenderHelper.SetAttribute ("RealTime", BooleanValue (realtime));
+//  CamSenderHelper.SetAttribute ("Model", StringValue ("80211p"));
 
   AppSampleHelper.SetAttribute ("Client", PointerValue (sumoClient));
   AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
@@ -180,11 +180,11 @@ main (int argc, char *argv[])
       ++nodeCounter; // increment counter for next node
 
       /* Install Application */
-      ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
+      //ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
       ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
 
-      CAMSenderApp.Start (Seconds (0.0));
-      CAMSenderApp.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
+      //CAMSenderApp.Start (Seconds (0.0));
+      //CAMSenderApp.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
       AppSample.Start (Seconds (0.0));
       AppSample.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
 
@@ -195,11 +195,11 @@ main (int argc, char *argv[])
   std::function<void (Ptr<Node>)> shutdownWifiNode = [] (Ptr<Node> exNode)
     {
       /* stop all applications */
-      Ptr<CAMDENMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMDENMSender>();
+      //Ptr<CAMDENMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMDENMSender>();
       Ptr<appSample> appSample_ = exNode->GetApplication(0)->GetObject<appSample>();
 
-      if(CAMSender_)
-        CAMSender_->StopApplicationNow();
+//      if(CAMSender_)
+//        CAMSender_->StopApplicationNow();
       if(appSample_)
         appSample_->StopApplicationNow();
 

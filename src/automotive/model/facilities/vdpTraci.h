@@ -11,6 +11,8 @@ namespace ns3 {
     VDPTraCI(Ptr<TraciClient> traci_client, std::string node_id);
     VDPTraCI();
 
+    void setProperties(Ptr<TraciClient> traci_client,std::string node_id) {m_traci_client=traci_client; m_id=node_id;}
+
     CAM_mandatory_data_t getCAMMandatoryData();
 
     double getSpeedValue() {return m_traci_client->TraCIAPI::vehicle.getSpeed (m_id);}

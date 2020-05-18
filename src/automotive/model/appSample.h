@@ -7,9 +7,9 @@
 
 #include <unordered_map>
 
-#include "v2v-CAM-DENM-sender.h"
-
 #include "ns3/denBasicService.h"
+#include "ns3/caBasicService.h"
+#include "ns3/vdpTraci.h"
 #include "ns3/socket.h"
 
 namespace ns3 {
@@ -37,7 +37,7 @@ public:
    *
    * \param the struct containing the info of the packet that was received.
    */
-  void receiveCAM (ca_data_t cam);
+  void receiveCAM (CAM_t *cam);
 
   /**
    * \brief Handle a DENM reception.
@@ -54,6 +54,8 @@ protected:
 private:
 
   DENBasicService m_denService;
+  CABasicService m_caService;
+  VDPTraCI m_vdp;
   Ipv4Address m_ipAddress;
   Ptr<Socket> m_socket; //!< Socket TX
   Ptr<Socket> m_socket2; //!< Socket RX

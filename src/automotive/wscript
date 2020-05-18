@@ -16,9 +16,7 @@ def build(bld):
     module = bld.create_ns3_module('automotive', ['core','fd-net-device','wifi', 'applications', 'mobility','internet', 'config-store','stats', 'traci'])
 
     module.source = [
-        'model/v2v-CAM-DENM-sender.cc',
         'model/appSample.cc',
-        'helper/v2v-cam-sender-helper.cc',
         'helper/appSample-helper.cc',
         'model/facilities/denBasicService.cc',
         'model/facilities/denData.cc',
@@ -252,9 +250,7 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'automotive'
     headers.source = [
-        'model/v2v-CAM-DENM-sender.h',
         'model/appSample.h',
-        'helper/v2v-cam-sender-helper.h',
         'helper/appSample-helper.h',
         'model/utils.h',
         'model/facilities/denBasicService.h',

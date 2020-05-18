@@ -31,7 +31,7 @@ namespace ns3
     m_RSU_GenCam_ms=1000;
   }
 
-  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,VDP *vdp, bool real_time, bool is_vehicle)
+  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp, bool real_time, bool is_vehicle)
   {
     m_station_id = (StationID_t) fixed_stationid;
     m_stationtype = (StationType_t) fixed_stationtype;
@@ -63,65 +63,99 @@ namespace ns3
     m_RSU_GenCam_ms=1000;
   }
 
-  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,VDP *vdp, bool real_time, bool is_vehicle, Ptr<Socket> socket_tx)
+  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp, bool real_time, bool is_vehicle, Ptr<Socket> socket_tx)
   {
     CABasicService(fixed_stationid,fixed_stationtype,vdp,real_time,is_vehicle);
 
     m_socket_tx=socket_tx;
   }
 
-  template <typename T> void
+
+  void
   CABasicService::startCamDissemination()
   {
     if(m_vehicle)
       {
-        Simulator::Schedule (Seconds(0), &CABasicService::initDissemination<T>, this);
+        Simulator::Schedule (Seconds(0), &CABasicService::initDissemination, this);
       }
     else
       {
-        Simulator::Schedule (Seconds (0), &CABasicService::RSUDissemination<T>, this);
+        Simulator::Schedule (Seconds (0), &CABasicService::RSUDissemination, this);
       }
   }
 
-  template <typename T> void
+  void
   CABasicService::startCamDissemination(double desync_s)
   {
     if(m_vehicle)
       {
-        Simulator::Schedule (Seconds (desync_s), &CABasicService::initDissemination<T>, this);
+        Simulator::Schedule (Seconds (desync_s), &CABasicService::initDissemination, this);
       }
     else
       {
-        Simulator::Schedule (Seconds (desync_s), &CABasicService::RSUDissemination<T>, this);
+        Simulator::Schedule (Seconds (desync_s), &CABasicService::RSUDissemination, this);
       }
   }
 
-  template <typename T> void
+  void
+  CABasicService::receiveCam (Ptr<Socket> socket)
+  {
+    Ptr<Packet> packet;
+    CAM_t *decoded_cam;
+    Address from;
+
+    packet = socket->RecvFrom (from);
+
+    uint8_t *buffer = new uint8_t[packet->GetSize ()];
+    packet->CopyData (buffer, packet->GetSize ()-1);
+
+
+    /* Try to check if the received packet is really a DENM */
+    if (buffer[1]!=FIX_CAMID)
+      {
+        NS_LOG_ERROR("Warning: received a message which has messageID '"<<buffer[1]<<"' but '2' was expected.");
+        return;
+      }
+
+    /** Decoding **/
+    void *decoded_=NULL;
+    asn_dec_rval_t decode_result;
+
+    do {
+      decode_result = asn_decode(0, ATS_UNALIGNED_BASIC_PER, &asn_DEF_CAM, &decoded_, buffer, packet->GetSize ()-1);
+    } while(decode_result.code==RC_WMORE);
+
+    if(decode_result.code!=RC_OK || decoded_==NULL) {
+        NS_LOG_ERROR("Warning: unable to decode a received CAM.");
+        return;
+      }
+
+    decoded_cam = (CAM_t *) decoded_;
+
+    m_CAReceiveCallback(decoded_cam);
+  }
+
+  void
   CABasicService::initDissemination()
   {
-    generateAndEncodeCam<T>();
-    Simulator::Schedule (MilliSeconds(m_T_CheckCamGen_ms), &CABasicService::checkCamConditions<T>, this);
+    generateAndEncodeCam();
+    Simulator::Schedule (MilliSeconds(m_T_CheckCamGen_ms), &CABasicService::checkCamConditions, this);
   }
 
-  template <typename T> void
+  void
   CABasicService::RSUDissemination()
   {
-    generateAndEncodeCam<T>();
-    Simulator::Schedule (MilliSeconds(m_RSU_GenCam_ms), &CABasicService::RSUDissemination<T>, this);
+    generateAndEncodeCam();
+    Simulator::Schedule (MilliSeconds(m_RSU_GenCam_ms), &CABasicService::RSUDissemination, this);
   }
 
-  template <typename T> void
+  void
   CABasicService::checkCamConditions()
   {
-    T *vdp = static_cast<T *> (m_vdp);
     int64_t now=computeTimestampUInt64 ();
+    CABasicService_error_t cam_error;
     bool condition_verified=false;
     bool dyn_cond_verified=false;
-
-    if(std::is_base_of<VDP, T>::value && !std::is_same<VDP, T>::value)
-      {
-        NS_FATAL_ERROR("Error. A wrong VDP derived class has been passed to checkCamConditions().");
-      }
 
     // If no initial CAM has been triggered before checkCamConditions() has been called, throw an error
     if(m_prev_heading==-1 || m_prev_speed==-1 || m_prev_distance==-1)
@@ -138,16 +172,19 @@ namespace ns3
      * ITS-S and the heading included in the CAM previously transmitted by the
      * originating ITS-S exceeds 4°;
     */
-    double head_diff = vdp->getHeadingValue () - m_prev_heading;
+    double head_diff = m_vdp->getHeadingValue () - m_prev_heading;
     head_diff += (head_diff>180.0) ? -360.0 : (head_diff<-180.0) ? 360.0 : 0.0;
     if (head_diff > 4.0 || head_diff < -4.0)
       {
-        if(generateAndEncodeCam<T> ()==CAM_NO_ERROR)
+        cam_error=generateAndEncodeCam ();
+        if(cam_error==CAM_NO_ERROR)
           {
             m_N_GenCam=1;
             m_T_GenCam_ms=now-lastCamGen;
             condition_verified=true;
             dyn_cond_verified=true;
+          } else {
+            NS_LOG_ERROR("Cannot generate CAM. Error code: "<<cam_error);
           }
       }
 
@@ -156,15 +193,18 @@ namespace ns3
      * the position included in the CAM previously transmitted by the originating
      * ITS-S exceeds 4 m;
     */
-    double pos_diff = vdp->getTravelledDistance () - m_prev_distance;
+    double pos_diff = m_vdp->getTravelledDistance () - m_prev_distance;
     if (!condition_verified && (pos_diff > 4.0 || pos_diff < -4.0))
       {
-        if(generateAndEncodeCam<T> ()==CAM_NO_ERROR)
+        cam_error=generateAndEncodeCam ();
+        if(cam_error==CAM_NO_ERROR)
           {
             m_N_GenCam=1;
             m_T_GenCam_ms=now-lastCamGen;
             condition_verified=true;
             dyn_cond_verified=true;
+          } else {
+            NS_LOG_ERROR("Cannot generate CAM. Error code: "<<cam_error);
           }
       }
 
@@ -173,15 +213,18 @@ namespace ns3
      * and the speed included in the CAM previously transmitted by the originating
      * ITS-S exceeds 0,5 m/s.
     */
-    double speed_diff = vdp->getSpeedValue () - m_prev_speed;
+    double speed_diff = m_vdp->getSpeedValue () - m_prev_speed;
     if (!condition_verified && (speed_diff > 0.5 || speed_diff < -0.5))
       {
-        if(generateAndEncodeCam<T> ()==CAM_NO_ERROR)
+        cam_error=generateAndEncodeCam ();
+        if(cam_error==CAM_NO_ERROR)
           {
             m_N_GenCam=1;
             m_T_GenCam_ms=now-lastCamGen;
             condition_verified=true;
             dyn_cond_verified=true;
+          } else {
+            NS_LOG_ERROR("Cannot generate CAM. Error code: "<<cam_error);
           }
       }
 
@@ -190,7 +233,8 @@ namespace ns3
     */
     if(!condition_verified && (now-lastCamGen>=m_T_GenCam_ms))
       {
-         if(generateAndEncodeCam<T> ()==CAM_NO_ERROR)
+         cam_error=generateAndEncodeCam ();
+         if(cam_error==CAM_NO_ERROR)
            {
 
              if(dyn_cond_verified==true)
@@ -203,18 +247,19 @@ namespace ns3
                      dyn_cond_verified=false;
                    }
                }
+           } else {
+             NS_LOG_ERROR("Cannot generate CAM. Error code: "<<cam_error);
            }
       }
 
-    Simulator::Schedule (MilliSeconds(m_T_CheckCamGen_ms), &CABasicService::checkCamConditions<T>, this);
+    Simulator::Schedule (MilliSeconds(m_T_CheckCamGen_ms), &CABasicService::checkCamConditions, this);
   }
 
-  template <typename T> CABasicService_error_t
+  CABasicService_error_t
   CABasicService::generateAndEncodeCam()
   {
     CAM_t *cam;
-    T *vdp = static_cast<T *> (m_vdp);
-    VDP::CAM_mandatory_data_t cam_mandatory_data;
+    CURRENT_VDP_TYPE::CAM_mandatory_data_t cam_mandatory_data;
 
     // Optional CAM data pointers
     AccelerationControl_t *accelerationcontrol;
@@ -227,14 +272,14 @@ namespace ns3
 
     RSUContainerHighFrequency_t* rsu_container;
 
-    if(vdp==NULL)
+    if(m_vdp==NULL)
       {
         return CAM_NULL_VDP;
       }
 
     if(m_vehicle==false)
       {
-        rsu_container=vdp->getRsuContainerHighFrequency();
+        rsu_container=m_vdp->getRsuContainerHighFrequency();
 
         if(rsu_container==NULL)
           {
@@ -250,7 +295,7 @@ namespace ns3
         return CAM_ALLOC_ERROR;
       }
 
-    cam_mandatory_data=vdp->getCAMMandatoryData();
+    cam_mandatory_data=m_vdp->getCAMMandatoryData();
 
     /* Fill the header */
     cam->header.messageID = FIX_CAMID;
@@ -290,25 +335,25 @@ namespace ns3
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.yawRate = cam_mandatory_data.yawRate;
 
         // Manage optional data
-        accelerationcontrol = vdp->getAccelerationControl();
+        accelerationcontrol = m_vdp->getAccelerationControl();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.accelerationControl = accelerationcontrol;
 
-        laneposition = vdp->getLanePosition();
+        laneposition = m_vdp->getLanePosition();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.lanePosition = laneposition;
 
-        steeringwheelangle = vdp->getSteeringWheelAngle();
+        steeringwheelangle = m_vdp->getSteeringWheelAngle();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.steeringWheelAngle = steeringwheelangle;
 
-        lateralacceleration=vdp->getLateralAcceleration();
+        lateralacceleration=m_vdp->getLateralAcceleration();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.lateralAcceleration = lateralacceleration;
 
-        verticalacceleration=vdp->getVerticalAcceleration();
+        verticalacceleration=m_vdp->getVerticalAcceleration();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.verticalAcceleration = verticalacceleration;
 
-        performanceclass=vdp->getPerformanceClass();
+        performanceclass=m_vdp->getPerformanceClass();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.performanceClass = performanceclass;
 
-        tollingzone=vdp->getCenDsrcTollingZone();
+        tollingzone=m_vdp->getCenDsrcTollingZone();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.cenDsrcTollingZone = tollingzone;
       }
    else
@@ -324,10 +369,15 @@ namespace ns3
         cam->cam.camParameters.basicContainer.referencePosition.positionConfidenceEllipse.semiMajorOrientation = HeadingValue_unavailable;
         /* Fill the highFrequencyContainer */
         cam->cam.camParameters.highFrequencyContainer.present = HighFrequencyContainer_PR_rsuContainerHighFrequency;
-        cam->cam.camParameters.highFrequencyContainer.choice.rsuContainerHighFrequency = rsu_container;
+        cam->cam.camParameters.highFrequencyContainer.choice.rsuContainerHighFrequency = *rsu_container;
       }
 
-    LowFrequencyContainer_t *lowfrequencycontainer=vdp->getLowFrequencyContainer();
+    // Store all the "previous" values used in checkCamConditions()
+    m_prev_distance=m_vdp->getTravelledDistance ();
+    m_prev_speed=m_vdp->getSpeedValue ();
+    m_prev_heading=m_vdp->getHeadingValue ();
+
+    LowFrequencyContainer_t *lowfrequencycontainer=m_vdp->getLowFrequencyContainer();
 
     if(lowfrequencycontainer!=NULL)
       {
@@ -339,7 +389,7 @@ namespace ns3
           }
       }
 
-    SpecialVehicleContainer_t *specialvehiclecontainer=vdp->getSpecialVehicleContainer();
+    SpecialVehicleContainer_t *specialvehiclecontainer=m_vdp->getSpecialVehicleContainer();
 
     if(specialvehiclecontainer!=NULL)
       {
@@ -378,21 +428,23 @@ namespace ns3
     if(m_vehicle==true)
       {
         // After encoding, we can free the previosly allocated optional data
-        if(accelerationcontrol) vdp->vdpFree(accelerationcontrol);
-        if(laneposition) vdp->vdpFree(laneposition);
-        if(steeringwheelangle) vdp->vdpFree(steeringwheelangle);
-        if(lateralacceleration) vdp->vdpFree(lateralacceleration);
-        if(verticalacceleration) vdp->vdpFree(verticalacceleration);
-        if(performanceclass) vdp->vdpFree(performanceclass);
-        if(tollingzone) vdp->vdpFree(tollingzone);
+        if(accelerationcontrol) m_vdp->vdpFree(accelerationcontrol);
+        if(laneposition) m_vdp->vdpFree(laneposition);
+        if(steeringwheelangle) m_vdp->vdpFree(steeringwheelangle);
+        if(lateralacceleration) m_vdp->vdpFree(lateralacceleration);
+        if(verticalacceleration) m_vdp->vdpFree(verticalacceleration);
+        if(performanceclass) m_vdp->vdpFree(performanceclass);
+        if(tollingzone) m_vdp->vdpFree(tollingzone);
       }
     else
       {
-        if(rsu_container) vdp->vdpFree(rsu_container);
+        if(rsu_container) m_vdp->vdpFree(rsu_container);
       }
 
-    if(lowfrequencycontainer) vdp->vdpFree(lowfrequencycontainer);
-    if(specialvehiclecontainer) vdp->vdpFree(specialvehiclecontainer);
+    if(lowfrequencycontainer) m_vdp->vdpFree(lowfrequencycontainer);
+    if(specialvehiclecontainer) m_vdp->vdpFree(specialvehiclecontainer);
+
+    return CAM_NO_ERROR;
   }
 
   int64_t

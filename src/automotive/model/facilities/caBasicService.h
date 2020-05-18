@@ -6,6 +6,8 @@
 #include "ns3/vdpTraci.h"
 #include "ns3/asn_utils.h"
 
+#define CURRENT_VDP_TYPE VDPTraCI
+
 namespace ns3
 {
   typedef enum {
@@ -21,26 +23,35 @@ namespace ns3
   {
   public:
     CABasicService();
-    CABasicService(unsigned long fixed_stationid,long fixed_stationtype, VDP *vdp, bool real_time, bool is_vehicle);
-    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,VDP *vdp,bool real_time,bool is_vehicle,Ptr<Socket> socket_tx);
+    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp, bool real_time, bool is_vehicle);
+    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp,bool real_time,bool is_vehicle,Ptr<Socket> socket_tx);
+
+    void setStationProperties(unsigned long fixed_stationid,long fixed_stationtype) {m_station_id=fixed_stationid; m_stationtype=fixed_stationtype;}
+    void setStationID(unsigned long fixed_stationid) {m_station_id=fixed_stationid;}
+    void setStationType(long fixed_stationtype) {m_stationtype=fixed_stationtype;}
+    void setSocketTx(Ptr<Socket> socket_tx) {m_socket_tx=socket_tx;}
+    void setRSU() {m_vehicle=false;}
+    void setVDP(CURRENT_VDP_TYPE *vdp) {m_vdp=vdp;}
+
     void receiveCam(Ptr<Socket> socket);
     void changeNGenCamMax(int16_t N_GenCamMax) {m_N_GenCamMax=N_GenCamMax;}
     void changeRSUGenInterval(long RSU_GenCam_ms) {m_RSU_GenCam_ms=RSU_GenCam_ms;}
+    void addCARxCallback(std::function<void(CAM_t *)> rx_callback) {m_CAReceiveCallback=rx_callback;}
 
-    template <typename T> void startCamDissemination(void);
-    template <typename T> void startCamDissemination(double desync_s);
+    void startCamDissemination();
+    void startCamDissemination(double desync_s);
 
-    const long T_GenCamMin_ms = 100;    
+    const long T_GenCamMin_ms = 100;
     const long T_GenCamMax_ms = 1000;
 
   private:
-    template <typename T> void checkCamConditions();
-    template <typename T> void initDissemination();
-    template <typename T> void RSUDissemination();
-    template <typename T> CABasicService_error_t generateAndEncodeCam();
-    //CAdata decodeCam(CAM_t &cam);
-    //CAM_t encodeCam(CAdata cam_data);
+    void initDissemination();
+    void RSUDissemination();
+    void checkCamConditions();
+    CABasicService_error_t generateAndEncodeCam();
     int64_t computeTimestampUInt64();
+
+    std::function<void(CAM_t *)> m_CAReceiveCallback;
 
     long m_T_CheckCamGen_ms;
     long m_T_GenCam_ms;
@@ -55,7 +66,7 @@ namespace ns3
 
     bool m_real_time;
     bool m_vehicle;
-    VDP *m_vdp;
+    CURRENT_VDP_TYPE *m_vdp;
 
     Ptr<Socket> m_socket_tx; // Socket TX
 
