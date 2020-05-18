@@ -173,7 +173,7 @@ namespace ns3
       stationtype = StationType_unknown;
 
     /* Set sockets, callback and station properties in DENBasicService */
-    m_denService.setSockets (m_socket,m_socket2);
+    m_denService.setSocketTx (m_socket);
     m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
     m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM,this,std::placeholders::_1));
 

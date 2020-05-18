@@ -11,13 +11,12 @@ namespace ns3 {
     m_stationtype = LONG_MAX;
     m_seq_number = 0;
     m_socket_tx = NULL;
-    m_socket_rx = NULL;
   }
 
   bool
   DENBasicService::CheckMainAttributes()
   {
-    return m_station_id!=ULONG_MAX && m_stationtype!=LONG_MAX && m_socket_tx!=NULL && m_socket_rx!=NULL;
+    return m_station_id!=ULONG_MAX && m_stationtype!=LONG_MAX && m_socket_tx!=NULL;
   }
 
     template<typename MEM_PTR> void
@@ -92,13 +91,12 @@ namespace ns3 {
     return 1;
   }
 
-  DENBasicService::DENBasicService(unsigned long fixed_stationid,long fixed_stationtype,Ptr<Socket> socket_tx,Ptr<Socket> socket_rx)
+  DENBasicService::DENBasicService(unsigned long fixed_stationid,long fixed_stationtype,Ptr<Socket> socket_tx)
   {
     m_station_id = (StationID_t) fixed_stationid;
     m_stationtype = (StationType_t) fixed_stationtype;
     m_seq_number = 0;
     m_socket_tx = socket_tx;
-    m_socket_rx = socket_rx;
   }
 
   DENBasicService_error_t

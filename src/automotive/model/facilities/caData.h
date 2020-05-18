@@ -1,76 +1,67 @@
-#ifndef DENDATA_H
-#define DENDATA_H
+#ifndef CADATA_H
+#define CADATA_H
 
 #include "asn_utils.h"
-#include "ns3/DENM.h"
+#include "ns3/CAM.h"
 #include <cstring>
 
-typedef struct CauseCode sCauseCode_t;
-typedef struct EventHistory sEventHistory_t;
+typedef struct SteeringWheelAngle sSteeringWheelAngle_t;
+typedef struct LateralAcceleration sLateralAcceleration_t;
+typedef struct VerticalAcceleration sVerticalAcceleration_t;
+typedef struct CenDsrcTollingZone sCenDsrcTollingZone_t;
+typedef struct ProtectedCommunicationZonesRSU sProtectedCommunicationZonesRSU_t;
 
-typedef struct Speed sSpeed_t;
-typedef struct Heading sHeading_t;
+#define MANDATORY_LAT_UNAVAILABLE 900000001
+#define MANDATORY_LONG_UNAVAILABLE 1800000001
 
-typedef struct ImpactReductionContainer sImpactReductionContainer_t;
-typedef struct RoadWorksContainerExtended sRoadWorksContainerExtended_t;
-typedef struct StationaryVehicleContainer sStationaryVehicleContainer_t;
-
-#define DEN_DEFAULT_VALIDITY_S 600
-
-class denData
+class caData
 {
 
 public:
-  typedef struct _internals {
-      uint32_t repetitionDuration;
-      uint32_t repetitionInterval;
-      bool isMandatorySet;
-  } denDataInternals;
-
   typedef struct _header {
     long messageID;
     long protocolVersion;
     StationID_t stationID;
-  } denDataHeader;
+  } caDataHeader;
 
-  typedef struct _management {
-      TimestampIts_t detectionTime;
-      ReferencePosition_t eventPosition;
-      ValidityDuration_t *validityDuration;
-      TransmissionInterval_t *transmissionInterval;
-      ActionID_t actionID;
-      Termination_t *termination;
-      RelevanceDistance_t *relevanceDistance;
-      RelevanceTrafficDirection_t *relevanceTrafficDirection;
-      TimestampIts_t referenceTime;
-      // StationType_t stationType; // Defined during the creation of the DEN Basic service object
-  } denDataManagement;
+  typedef struct _basiccontainer {
+    StationType_t stationType;
+    ReferencePosition_t	referencePosition;
+  } caDataBasicContainer;
 
-  typedef struct _situation {
-      InformationQuality_t informationQuality;
-      CauseCode_t eventType;
-      sCauseCode_t *linkedCause;
-      sEventHistory_t *eventHistory;
-  } denDataSituation;
+  typedef struct _hfcontainervehicle {
+    Heading_t heading;
+    Speed_t speed;
+    DriveDirection_t driveDirection;
+    VehicleLength_t vehicleLength;
+    VehicleWidth_t vehicleWidth;
+    LongitudinalAcceleration_t longitudinalAcceleration;
+    Curvature_t	curvature;
+    CurvatureCalculationMode_t curvatureCalculationMode;
+    YawRate_t yawRate;
+    AccelerationControl_t *accelerationControl;
+    LanePosition_t *lanePosition;
+    sSteeringWheelAngle_t *steeringWheelAngle;
+    sLateralAcceleration_t *lateralAcceleration;
+    sVerticalAcceleration_t *verticalAcceleration;
+    PerformanceClass_t *performanceClass;
+    sCenDsrcTollingZone_t *cenDsrcTollingZone;
+  } caDataHFContainerVehicle;
 
-  typedef struct _location {
-      sSpeed_t *eventSpeed;
-      sHeading_t *eventPositionHeading;
-      Traces_t traces;
-      RoadType_t *roadType;
-  } denDataLocation;
+  typedef struct _hfcontainerrsu {
+    sProtectedCommunicationZonesRSU_t protectedCommZonesRSU;
+  } caDataHFContainerRSU;
 
-  typedef struct _alacarte {
-      LanePosition_t *lanePosition;
-      sImpactReductionContainer_t *impactReduction;
-      Temperature_t *externalTemperature;
-      sRoadWorksContainerExtended_t *roadWorks;
-      PositioningSolutionType_t *positioningSolution;
-      sStationaryVehicleContainer_t *stationaryVehicle;
-  } denDataAlacarte;
+  typedef struct _lfcontainer {
+      VehicleRole_t vehicleRole;
+      ExteriorLights_t exteriorLights;
+      PathHistory_t pathHistory;
+  } caDataLFContainer;
+
+  typedef SpecialVehicleContainer_t caDataSpecialVehicleContainer;
 
 public:
-  denData();
+  caData();
 
   /* AppDENM_trigger mandatory setters */
   void setDenmMandatoryFields(long detectionTime_ms, double latReference_deg, double longReference_deg);
@@ -103,11 +94,11 @@ public:
   long getDenmHeaderStationID() {return m_header.stationID;}
 
   /* Container getters */
-  denDataHeader getDenmHeader_asn_types() const{return m_header;}
-  denDataManagement getDenmMgmtData_asn_types() const{return m_management;}
-  denDataSituation getDenmSituationData_asn_types() const{return m_situation;}
-  denDataLocation getDenmLocationData_asn_types() const{return m_location;}
-  denDataAlacarte getDenmAlacarteData_asn_types() const{return m_alacarte;}
+  caDataHeader getDenmHeader_asn_types() const{return m_header;}
+  caDataManagement getDenmMgmtData_asn_types() const{return m_management;}
+  caDataSituation getDenmSituationData_asn_types() const{return m_situation;}
+  caDataLocation getDenmLocationData_asn_types() const{return m_location;}
+  caDataAlacarte getDenmAlacarteData_asn_types() const{return m_alacarte;}
 
   long getDenmMgmtDetectionTime() const{long detectionTime=0;
                                         asn_INTEGER2long (&m_management.detectionTime,&detectionTime);
@@ -141,23 +132,23 @@ public:
   uint32_t getDenmRepetitionInterval() { return m_internals.repetitionInterval; }
 
   /* Container setters */
-  void setDenmMgmtData_asn_types(denDataManagement management) {m_management = management;}
-  void setDenmSituationData_asn_types(denDataSituation situation) {m_situation = situation;}
-  void setDenmLocationData_asn_types(denDataLocation location) {m_location = location;}
-  void setDenmAlacarteData_asn_types(denDataAlacarte alacarte) {m_alacarte = alacarte;}
+  void setDenmMgmtData_asn_types(caDataManagement management) {m_management = management;}
+  void setDenmSituationData_asn_types(caDataSituation situation) {m_situation = situation;}
+  void setDenmLocationData_asn_types(caDataLocation location) {m_location = location;}
+  void setDenmAlacarteData_asn_types(caDataAlacarte alacarte) {m_alacarte = alacarte;}
 
   /* Object integrity check */
-  bool isDenDataRight();
+  bool iscaDataRight();
 
 private:
   INTEGER_t asnTimeConvert(long time);
 
-  denDataInternals m_internals;
-  denDataHeader m_header;
-  denDataManagement m_management;
-  denDataSituation m_situation;
-  denDataLocation m_location;
-  denDataAlacarte m_alacarte;
+  caDataInternals m_internals;
+  caDataHeader m_header;
+  caDataManagement m_management;
+  caDataSituation m_situation;
+  caDataLocation m_location;
+  caDataAlacarte m_alacarte;
 };
 
-#endif // DENDATA_H
+#endif // CADATA_H

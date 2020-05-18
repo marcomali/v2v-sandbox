@@ -35,7 +35,7 @@ namespace ns3 {
   {
     public:
     DENBasicService();
-    DENBasicService(unsigned long fixed_stationid,long fixed_stationtype,Ptr<Socket> socket_tx,Ptr<Socket> socket_rx);
+    DENBasicService(unsigned long fixed_stationid,long fixed_stationtype,Ptr<Socket> socket_tx);
 
     void addDENRxCallback(std::function<void(denData)> rx_callback) {m_DENReceiveCallback=rx_callback;}
 
@@ -50,9 +50,7 @@ namespace ns3 {
     void setStationID(unsigned long fixed_stationid) {m_station_id=fixed_stationid;}
     void setStationType(long fixed_stationtype) {m_stationtype=fixed_stationtype;}
 
-    void setSockets(Ptr<Socket> socket_tx,Ptr<Socket> socket_rx) {m_socket_tx=socket_tx; m_socket_rx=socket_rx;}
     void setSocketTx(Ptr<Socket> socket_tx) {m_socket_tx=socket_tx;}
-    void setSocketRx(Ptr<Socket> socket_rx) {m_socket_rx=socket_rx;}
 
     /* Cleanup function - always call this before terminating the simulation */
     void cleanup(void);
@@ -83,7 +81,6 @@ namespace ns3 {
     uint16_t m_seq_number;
 
     Ptr<Socket> m_socket_tx; // Socket TX
-    Ptr<Socket> m_socket_rx; // Socket RX
 
     std::map<std::pair<unsigned long,long>,ITSSOriginatingTableEntry> m_originatingITSSTable;
     std::map<std::pair<unsigned long,long>,ITSSReceivingTableEntry> m_receivingITSSTable;

@@ -9,7 +9,6 @@ namespace ns3
     m_station_id = ULONG_MAX;
     m_stationtype = LONG_MAX;
     m_socket_tx=NULL;
-    m_socket_rx=NULL;
     m_vdp=NULL;
     m_real_time=false;
     m_T_CheckCamGen_ms=T_GenCamMin_ms;
@@ -43,7 +42,6 @@ namespace ns3
     m_real_time=real_time;
 
     m_socket_tx=NULL;
-    m_socket_rx=NULL;
 
     m_prev_heading=-1;
     m_prev_speed=-1;
@@ -65,12 +63,11 @@ namespace ns3
     m_RSU_GenCam_ms=1000;
   }
 
-  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,VDP *vdp, bool real_time, bool is_vehicle, Ptr<Socket> socket_tx, Ptr<Socket> socket_rx)
+  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,VDP *vdp, bool real_time, bool is_vehicle, Ptr<Socket> socket_tx)
   {
     CABasicService(fixed_stationid,fixed_stationtype,vdp,real_time,is_vehicle);
 
     m_socket_tx=socket_tx;
-    m_socket_rx=socket_rx;
   }
 
   template <typename T> void
@@ -374,6 +371,9 @@ namespace ns3
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) encode_result.buffer, encode_result.result.encoded+1);
     m_socket_tx->Send (packet);
 
+    // Store the time in which the last CAM (i.e. this one) has been generated and successfully sent
+    lastCamGen = computeTimestampUInt64 ();
+
     // Free all the previously allocated memory
     if(m_vehicle==true)
       {
@@ -393,9 +393,6 @@ namespace ns3
 
     if(lowfrequencycontainer) vdp->vdpFree(lowfrequencycontainer);
     if(specialvehiclecontainer) vdp->vdpFree(specialvehiclecontainer);
-
-    // Store the time in which the last CAM (i.e. this one) has been generated and successfully sent
-    lastCamGen = computeTimestampUInt64 ();
   }
 
   int64_t

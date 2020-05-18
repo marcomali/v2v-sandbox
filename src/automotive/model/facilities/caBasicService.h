@@ -22,7 +22,7 @@ namespace ns3
   public:
     CABasicService();
     CABasicService(unsigned long fixed_stationid,long fixed_stationtype, VDP *vdp, bool real_time, bool is_vehicle);
-    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,VDP *vdp,bool real_time,bool is_vehicle,Ptr<Socket> socket_tx,Ptr<Socket> socket_rx);
+    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,VDP *vdp,bool real_time,bool is_vehicle,Ptr<Socket> socket_tx);
     void receiveCam(Ptr<Socket> socket);
     void changeNGenCamMax(int16_t N_GenCamMax) {m_N_GenCamMax=N_GenCamMax;}
     void changeRSUGenInterval(long RSU_GenCam_ms) {m_RSU_GenCam_ms=RSU_GenCam_ms;}
@@ -58,7 +58,6 @@ namespace ns3
     VDP *m_vdp;
 
     Ptr<Socket> m_socket_tx; // Socket TX
-    Ptr<Socket> m_socket_rx; // Socket RX
 
     StationID_t m_station_id;
     StationType_t m_stationtype;
