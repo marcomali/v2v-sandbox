@@ -55,7 +55,6 @@ private:
 
   DENBasicService m_denService;
   CABasicService m_caService;
-  VDPTraCI m_vdp;
   Ipv4Address m_ipAddress;
   Ptr<Socket> m_socket; //!< Socket TX
   Ptr<Socket> m_socket2; //!< Socket RX

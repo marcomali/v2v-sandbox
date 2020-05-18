@@ -14,24 +14,23 @@ namespace ns3
     CAM_NO_ERROR=0,
     CAM_WRONG_INTERVAL=1,
     CAM_ALLOC_ERROR=2,
-    CAM_NULL_VDP=3,
-    CAM_NO_RSU_CONTAINER=4,
-    CAM_ASN1_UPER_ENC_ERROR=5
+    CAM_NO_RSU_CONTAINER=3,
+    CAM_ASN1_UPER_ENC_ERROR=4
   } CABasicService_error_t;
 
   class CABasicService
   {
   public:
     CABasicService();
-    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp, bool real_time, bool is_vehicle);
-    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp,bool real_time,bool is_vehicle,Ptr<Socket> socket_tx);
+    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE vdp,bool real_time,bool is_vehicle);
+    CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE vdp,bool real_time,bool is_vehicle,Ptr<Socket> socket_tx);
 
     void setStationProperties(unsigned long fixed_stationid,long fixed_stationtype) {m_station_id=fixed_stationid; m_stationtype=fixed_stationtype;}
     void setStationID(unsigned long fixed_stationid) {m_station_id=fixed_stationid;}
     void setStationType(long fixed_stationtype) {m_stationtype=fixed_stationtype;}
     void setSocketTx(Ptr<Socket> socket_tx) {m_socket_tx=socket_tx;}
     void setRSU() {m_vehicle=false;}
-    void setVDP(CURRENT_VDP_TYPE *vdp) {m_vdp=vdp;}
+    void setVDP(CURRENT_VDP_TYPE vdp) {m_vdp=vdp;}
 
     void receiveCam(Ptr<Socket> socket);
     void changeNGenCamMax(int16_t N_GenCamMax) {m_N_GenCamMax=N_GenCamMax;}
@@ -66,7 +65,7 @@ namespace ns3
 
     bool m_real_time;
     bool m_vehicle;
-    CURRENT_VDP_TYPE *m_vdp;
+    CURRENT_VDP_TYPE m_vdp;
 
     Ptr<Socket> m_socket_tx; // Socket TX
 

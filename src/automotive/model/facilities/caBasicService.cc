@@ -9,7 +9,6 @@ namespace ns3
     m_station_id = ULONG_MAX;
     m_stationtype = LONG_MAX;
     m_socket_tx=NULL;
-    m_vdp=NULL;
     m_real_time=false;
     m_T_CheckCamGen_ms=T_GenCamMin_ms;
     m_prev_heading=-1;
@@ -31,7 +30,7 @@ namespace ns3
     m_RSU_GenCam_ms=1000;
   }
 
-  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp, bool real_time, bool is_vehicle)
+  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE vdp, bool real_time, bool is_vehicle)
   {
     m_station_id = (StationID_t) fixed_stationid;
     m_stationtype = (StationType_t) fixed_stationtype;
@@ -63,7 +62,7 @@ namespace ns3
     m_RSU_GenCam_ms=1000;
   }
 
-  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE *vdp, bool real_time, bool is_vehicle, Ptr<Socket> socket_tx)
+  CABasicService::CABasicService(unsigned long fixed_stationid,long fixed_stationtype,CURRENT_VDP_TYPE vdp, bool real_time, bool is_vehicle, Ptr<Socket> socket_tx)
   {
     CABasicService(fixed_stationid,fixed_stationtype,vdp,real_time,is_vehicle);
 
@@ -172,7 +171,7 @@ namespace ns3
      * ITS-S and the heading included in the CAM previously transmitted by the
      * originating ITS-S exceeds 4°;
     */
-    double head_diff = m_vdp->getHeadingValue () - m_prev_heading;
+    double head_diff = m_vdp.getHeadingValue () - m_prev_heading;
     head_diff += (head_diff>180.0) ? -360.0 : (head_diff<-180.0) ? 360.0 : 0.0;
     if (head_diff > 4.0 || head_diff < -4.0)
       {
@@ -193,7 +192,7 @@ namespace ns3
      * the position included in the CAM previously transmitted by the originating
      * ITS-S exceeds 4 m;
     */
-    double pos_diff = m_vdp->getTravelledDistance () - m_prev_distance;
+    double pos_diff = m_vdp.getTravelledDistance () - m_prev_distance;
     if (!condition_verified && (pos_diff > 4.0 || pos_diff < -4.0))
       {
         cam_error=generateAndEncodeCam ();
@@ -213,7 +212,7 @@ namespace ns3
      * and the speed included in the CAM previously transmitted by the originating
      * ITS-S exceeds 0,5 m/s.
     */
-    double speed_diff = m_vdp->getSpeedValue () - m_prev_speed;
+    double speed_diff = m_vdp.getSpeedValue () - m_prev_speed;
     if (!condition_verified && (speed_diff > 0.5 || speed_diff < -0.5))
       {
         cam_error=generateAndEncodeCam ();
@@ -272,14 +271,9 @@ namespace ns3
 
     RSUContainerHighFrequency_t* rsu_container;
 
-    if(m_vdp==NULL)
-      {
-        return CAM_NULL_VDP;
-      }
-
     if(m_vehicle==false)
       {
-        rsu_container=m_vdp->getRsuContainerHighFrequency();
+        rsu_container=m_vdp.getRsuContainerHighFrequency();
 
         if(rsu_container==NULL)
           {
@@ -295,7 +289,7 @@ namespace ns3
         return CAM_ALLOC_ERROR;
       }
 
-    cam_mandatory_data=m_vdp->getCAMMandatoryData();
+    cam_mandatory_data=m_vdp.getCAMMandatoryData();
 
     /* Fill the header */
     cam->header.messageID = FIX_CAMID;
@@ -335,25 +329,25 @@ namespace ns3
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.yawRate = cam_mandatory_data.yawRate;
 
         // Manage optional data
-        accelerationcontrol = m_vdp->getAccelerationControl();
+        accelerationcontrol = m_vdp.getAccelerationControl();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.accelerationControl = accelerationcontrol;
 
-        laneposition = m_vdp->getLanePosition();
+        laneposition = m_vdp.getLanePosition();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.lanePosition = laneposition;
 
-        steeringwheelangle = m_vdp->getSteeringWheelAngle();
+        steeringwheelangle = m_vdp.getSteeringWheelAngle();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.steeringWheelAngle = steeringwheelangle;
 
-        lateralacceleration=m_vdp->getLateralAcceleration();
+        lateralacceleration=m_vdp.getLateralAcceleration();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.lateralAcceleration = lateralacceleration;
 
-        verticalacceleration=m_vdp->getVerticalAcceleration();
+        verticalacceleration=m_vdp.getVerticalAcceleration();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.verticalAcceleration = verticalacceleration;
 
-        performanceclass=m_vdp->getPerformanceClass();
+        performanceclass=m_vdp.getPerformanceClass();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.performanceClass = performanceclass;
 
-        tollingzone=m_vdp->getCenDsrcTollingZone();
+        tollingzone=m_vdp.getCenDsrcTollingZone();
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.cenDsrcTollingZone = tollingzone;
       }
    else
@@ -373,11 +367,11 @@ namespace ns3
       }
 
     // Store all the "previous" values used in checkCamConditions()
-    m_prev_distance=m_vdp->getTravelledDistance ();
-    m_prev_speed=m_vdp->getSpeedValue ();
-    m_prev_heading=m_vdp->getHeadingValue ();
+    m_prev_distance=m_vdp.getTravelledDistance ();
+    m_prev_speed=m_vdp.getSpeedValue ();
+    m_prev_heading=m_vdp.getHeadingValue ();
 
-    LowFrequencyContainer_t *lowfrequencycontainer=m_vdp->getLowFrequencyContainer();
+    LowFrequencyContainer_t *lowfrequencycontainer=m_vdp.getLowFrequencyContainer();
 
     if(lowfrequencycontainer!=NULL)
       {
@@ -389,7 +383,7 @@ namespace ns3
           }
       }
 
-    SpecialVehicleContainer_t *specialvehiclecontainer=m_vdp->getSpecialVehicleContainer();
+    SpecialVehicleContainer_t *specialvehiclecontainer=m_vdp.getSpecialVehicleContainer();
 
     if(specialvehiclecontainer!=NULL)
       {
@@ -428,21 +422,21 @@ namespace ns3
     if(m_vehicle==true)
       {
         // After encoding, we can free the previosly allocated optional data
-        if(accelerationcontrol) m_vdp->vdpFree(accelerationcontrol);
-        if(laneposition) m_vdp->vdpFree(laneposition);
-        if(steeringwheelangle) m_vdp->vdpFree(steeringwheelangle);
-        if(lateralacceleration) m_vdp->vdpFree(lateralacceleration);
-        if(verticalacceleration) m_vdp->vdpFree(verticalacceleration);
-        if(performanceclass) m_vdp->vdpFree(performanceclass);
-        if(tollingzone) m_vdp->vdpFree(tollingzone);
+        if(accelerationcontrol) m_vdp.vdpFree(accelerationcontrol);
+        if(laneposition) m_vdp.vdpFree(laneposition);
+        if(steeringwheelangle) m_vdp.vdpFree(steeringwheelangle);
+        if(lateralacceleration) m_vdp.vdpFree(lateralacceleration);
+        if(verticalacceleration) m_vdp.vdpFree(verticalacceleration);
+        if(performanceclass) m_vdp.vdpFree(performanceclass);
+        if(tollingzone) m_vdp.vdpFree(tollingzone);
       }
     else
       {
-        if(rsu_container) m_vdp->vdpFree(rsu_container);
+        if(rsu_container) m_vdp.vdpFree(rsu_container);
       }
 
-    if(lowfrequencycontainer) m_vdp->vdpFree(lowfrequencycontainer);
-    if(specialvehiclecontainer) m_vdp->vdpFree(specialvehiclecontainer);
+    if(lowfrequencycontainer) m_vdp.vdpFree(lowfrequencycontainer);
+    if(specialvehiclecontainer) m_vdp.vdpFree(specialvehiclecontainer);
 
     return CAM_NO_ERROR;
   }

@@ -180,8 +180,8 @@ namespace ns3
     m_caService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
     m_caService.addCARxCallback (std::bind(&appSample::receiveCAM,this,std::placeholders::_1));
 
-    m_vdp.setProperties(m_client,m_id);
-    m_caService.setVDP(&m_vdp);
+    VDPTraCI traci_vdp(m_client,m_id);
+    m_caService.setVDP(traci_vdp);
 
     /* Schedule CAM dissemination */
     std::srand(Simulator::Now().GetNanoSeconds ());
