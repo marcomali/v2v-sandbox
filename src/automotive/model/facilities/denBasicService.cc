@@ -250,6 +250,9 @@ namespace ns3 {
         return DENM_ASN1_UPER_ENC_ERROR;
       }
 
+    std::cout<<"INTERNAL LAT: "<<data.getDenmMgmtLatitude ()<<std::endl;
+    std::cout<<"INTERNAL LONG: "<<data.getDenmMgmtLongitude ()<<std::endl;
+
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) encode_result.buffer, encode_result.result.encoded+1);
     m_socket_tx->Send (packet);
 

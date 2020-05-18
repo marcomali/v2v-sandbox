@@ -325,7 +325,7 @@ namespace ns3
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.vehicleWidth = cam_mandatory_data.VehicleWidth;
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.longitudinalAcceleration = cam_mandatory_data.longAcceleration;
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.curvature = cam_mandatory_data.curvature;
-        cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.curvatureCalculationMode = cam_mandatory_data.curvature_calculation_mode_t;
+        cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.curvatureCalculationMode = cam_mandatory_data.curvature_calculation_mode;
         cam->cam.camParameters.highFrequencyContainer.choice.basicVehicleContainerHighFrequency.yawRate = cam_mandatory_data.yawRate;
 
         // Manage optional data

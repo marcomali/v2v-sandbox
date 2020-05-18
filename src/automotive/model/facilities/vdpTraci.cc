@@ -72,6 +72,7 @@ namespace ns3
     /* Curvature and CurvatureCalculationMode */
     CAMdata.curvature.curvatureValue = CurvatureValue_unavailable;
     CAMdata.curvature.curvatureConfidence = CurvatureConfidence_unavailable;
+    CAMdata.curvature_calculation_mode = CurvatureCalculationMode_unavailable;
 
     /* Length and Width [0.1 m] */
     CAMdata.VehicleLength = m_vehicle_length;

@@ -19,7 +19,7 @@ namespace ns3
         Heading_t heading;
         DriveDirection_t driveDirection;
         Curvature_t curvature;
-        CurvatureCalculationMode_t curvature_calculation_mode_t;
+        CurvatureCalculationMode_t curvature_calculation_mode;
         VehicleLength_t VehicleLength;
         VehicleWidth_t VehicleWidth;
         YawRate_t yawRate;

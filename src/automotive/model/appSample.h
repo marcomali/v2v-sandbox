@@ -56,8 +56,10 @@ private:
   DENBasicService m_denService;
   CABasicService m_caService;
   Ipv4Address m_ipAddress;
-  Ptr<Socket> m_socket; //!< Socket TX
-  Ptr<Socket> m_socket2; //!< Socket RX
+  Ptr<Socket> m_socket_tx_denm; //!< Socket TX (DENM)
+  Ptr<Socket> m_socket_tx_cam; //!< Socket TX (CAM)
+  Ptr<Socket> m_socket_rx_denm; //!< Socket RX (DENM)
+  Ptr<Socket> m_socket_rx_cam; //!< Socket RX (CAM)
   std::string m_model; //!< Communication Model (possible values: 80211p and cv2x)
 
   void UpdateDenm(ActionID_t actionid);

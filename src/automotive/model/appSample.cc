@@ -138,28 +138,56 @@ namespace ns3
 
     /* Create the Sockets for TX and RX */
     TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-    m_socket = Socket::CreateSocket (GetNode (), tid);
-    if (m_socket->Bind () == -1)
+
+    /* TX socket for DENMs */
+    m_socket_tx_denm = Socket::CreateSocket (GetNode (), tid);
+    if (m_socket_tx_denm->Bind () == -1)
       {
         NS_FATAL_ERROR ("Failed to bind client socket");
       }
 
     if(m_model=="80211p")
-      m_socket->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),19));
+      m_socket_tx_denm->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),19));
     else if(m_model=="cv2x")
-      m_socket->Connect (InetSocketAddress(m_ipAddress,9));
+      m_socket_tx_denm->Connect (InetSocketAddress(m_ipAddress,19));
     else
       NS_FATAL_ERROR ("No communication model set - check simulation script");
-    m_socket->SetAllowBroadcast (true);
-    m_socket->ShutdownRecv();
+    m_socket_tx_denm->SetAllowBroadcast (true);
+    m_socket_tx_denm->ShutdownRecv();
 
-    m_socket2 = Socket::CreateSocket (GetNode (), tid);
-    if (m_socket2->Bind (InetSocketAddress (Ipv4Address::GetAny (), 19)) == -1)
+    /* TX socket for CAMs */
+    m_socket_tx_cam = Socket::CreateSocket (GetNode (), tid);
+    if (m_socket_tx_cam->Bind () == -1)
       {
         NS_FATAL_ERROR ("Failed to bind client socket");
       }
+
+    if(m_model=="80211p")
+      m_socket_tx_cam->Connect (InetSocketAddress (Ipv4Address::GetBroadcast (),20));
+    else if(m_model=="cv2x")
+      m_socket_tx_cam->Connect (InetSocketAddress(m_ipAddress,20));
+    else
+      NS_FATAL_ERROR ("No communication model set - check simulation script");
+    m_socket_tx_cam->SetAllowBroadcast (true);
+    m_socket_tx_cam->ShutdownRecv();
+
+    /* RX socket for DENMs */
+    m_socket_rx_denm = Socket::CreateSocket (GetNode (), tid);
+    if (m_socket_rx_denm->Bind (InetSocketAddress (Ipv4Address::GetAny (), 19)) == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket for DENMs");
+      }
     // Make the callback to handle received packets
-    m_socket2->SetRecvCallback (MakeCallback (&DENBasicService::receiveDENM, &m_denService));
+    m_socket_rx_denm->SetRecvCallback (MakeCallback (&DENBasicService::receiveDENM, &m_denService));
+
+    /* RX socket for CAMs */
+    m_socket_rx_cam = Socket::CreateSocket (GetNode (), tid);
+    if (m_socket_rx_cam->Bind (InetSocketAddress (Ipv4Address::GetAny (), 20)) == -1)
+      {
+        NS_FATAL_ERROR ("Failed to bind client socket for CAMs");
+      }
+    // Make the callback to handle received packets
+    m_socket_rx_cam->SetRecvCallback (MakeCallback (&CABasicService::receiveCam, &m_caService));
 
     /* Set Station Type in DENBasicService */
     StationType_t stationtype;
@@ -171,12 +199,12 @@ namespace ns3
       stationtype = StationType_unknown;
 
     /* Set sockets, callback and station properties in DENBasicService */
-    m_denService.setSocketTx (m_socket);
+    m_denService.setSocketTx (m_socket_tx_denm);
     m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
     m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM,this,std::placeholders::_1));
 
     /* Set sockets, callback, station properties and TraCI VDP in CABasicService */
-    m_caService.setSocketTx (m_socket);
+    m_caService.setSocketTx (m_socket_tx_cam);
     m_caService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
     m_caService.addCARxCallback (std::bind(&appSample::receiveCAM,this,std::placeholders::_1));
 
@@ -355,7 +383,6 @@ namespace ns3
      * by choosing the "rightmost" (i.e. with index 0), in order to facilitate the emergency vehicle takeover. For visualization purposes, it will change
      * color during this phase.
      */
-
 
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
     long my_edge_hash = ((std::hash<std::string>{}(my_edge)%900000000));

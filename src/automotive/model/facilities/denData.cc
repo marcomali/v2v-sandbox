@@ -48,8 +48,8 @@ void
 denData::setDenmMandatoryFields (long detectionTime_ms, double latReference_deg, double longReference_deg)
 {
   m_management.detectionTime = asnTimeConvert(detectionTime_ms);
-  m_management.eventPosition.latitude = (latReference_deg == (Latitude_t) (latReference_deg));
-  m_management.eventPosition.longitude = (longReference_deg == (Longitude_t) (longReference_deg));
+  m_management.eventPosition.latitude = (Latitude_t) (latReference_deg);
+  m_management.eventPosition.longitude = (Longitude_t) (longReference_deg);
   m_management.eventPosition.altitude.altitudeValue = AltitudeValue_unavailable;
   m_management.eventPosition.altitude.altitudeConfidence = AltitudeConfidence_unavailable;
 
