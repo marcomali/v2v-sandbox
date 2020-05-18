@@ -86,6 +86,7 @@ set +v
 echo "Moving the full installation to the current directory..."
 sleep 1
 set -v
+cd ../..
 rm -rf -v !("sandbox_builder.sh"|"ns-3-allinone")
 cp -af ns-3-allinone/* .
 rm -rf ns-3-allinone
