@@ -42,10 +42,9 @@ build/
 *.cflags
 *.cxxflags
 
-error-log.csv
 fcd.xml
 simulation_log.txt
-summary.csv
+*.csv
 
 src/antenna/          
 src/dsdv/       
@@ -122,5 +121,3 @@ wutils.py
 .hgignore
 .hgtags
 .vscode/
-
-*.csv
