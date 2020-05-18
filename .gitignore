@@ -122,3 +122,5 @@ wutils.py
 .hgignore
 .hgtags
 .vscode/
+
+*.csv
