@@ -39,6 +39,8 @@ build/
 *.includes
 *.creator
 *.config
+*.cflags
+*.cxxflags
 
 error-log.csv
 fcd.xml

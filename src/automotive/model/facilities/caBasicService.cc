@@ -219,11 +219,11 @@ namespace ns3
     // Optional CAM data pointers
     AccelerationControl_t *accelerationcontrol;
     LanePosition_t *laneposition;
-    SteeringWheelAngle_t steeringwheelangle;
-    LateralAcceleration_t lateralacceleration;
-    VerticalAcceleration_t verticalacceleration;
-    PerformanceClass_t performanceclass;
-    CenDsrcTollingZone_t tollingzone;
+    SteeringWheelAngle_t *steeringwheelangle;
+    LateralAcceleration_t *lateralacceleration;
+    VerticalAcceleration_t *verticalacceleration;
+    PerformanceClass_t *performanceclass;
+    CenDsrcTollingZone_t *tollingzone;
 
     RSUContainerHighFrequency_t* rsu_container;
 

@@ -1,6 +1,6 @@
 # v2v-framework
 
-ns3 modules to build a simple V2V application using SUMO (v-1.5.0) and ns-3 (v-3.29).
+ns3 modules to build a simple V2V application using SUMO (v-1.6.0) and ns-3 (v-3.29).
 
 It has been tested with SUMO v1.2.0 and ns3 v3.29 on Ubuntu 18.04.
 Back compatibility **is not** ensured with new versions of TraCI.
@@ -11,9 +11,13 @@ To build the project:
     	`sudo add-apt-repository ppa:sumo/stable`  
     	`sudo apt update`  
     	`sudo apt install sumo sumo-tools sumo-doc`  
-    * Be careful: in the future the previous commands will install updated version of SUMO which are not ensured to work with this scripts (that are tested with **v-1.5.0**)
+    * Be careful: in the future the previous commands will install updated version of SUMO which are not ensured to work with this scripts (that are tested with **v-1.6.0** - but also 1.5.0 is fine)
 
 * Clone this repository in your pc.
+
+* Run, from this repository:
+`./sandbox_builder.sh`
+This script will download ns-3.29 and install this framework in it. The folder `ns-3.29` will remain linked to this GitHub repository (not to the vanilla ns-3.29 one), allowing you to more easily develop updates and possibile contributions to the sandbox.
     
 * Configure waf to build the new modules with "<ns3-folder>./waf configure --build-profile=optimized --enable-examples --enable-tests" (add here what you want to enable) - The usage of the optimized profile allows to speed up the simulation time
 
@@ -83,7 +87,7 @@ For visualization puproses, in SUMO normal vehicles are shown as yellow cars, wh
 
 **IMPORTANT**
 Sometimes it may happen that in build phase you have some "Warning threated as error". To remove that, configure the project using:
-`CXXFLAGS="-Wall" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`
+`CXXFLAGS="-Wno-maybe-uninitialized" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`
 and then build again
 
 In this version LTE python bindings are disabled!
