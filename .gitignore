@@ -115,3 +115,8 @@ waf
 waf.bat
 wscript
 wutils.py
+
+.clang-format
+.hgignore
+.hgtags
+.vscode/

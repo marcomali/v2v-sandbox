@@ -63,15 +63,17 @@ set +v
 echo "Removing git from vanilla ns-3.29..."
 sleep 1
 set -v
-cd ns-${NS3_VERSION}
-rm -rf .git
+find . -type d -name .git -exec rm -rfv {} \;
+find . -type f -name .gitignore -exec rm -rfv {} \;
+find . -type f -name .gitattributes -exec rm -rfv {} \;
 set +v
 
 echo "Installing the sandbox..."
 sleep 1
 set -v
-cd ../..
+cd ..
 shopt -s extglob
+shopt -s dotglob
 cp -af ./!(ns-3-allinone) ns-3-allinone/ns-${NS3_VERSION}
 set +v
 
