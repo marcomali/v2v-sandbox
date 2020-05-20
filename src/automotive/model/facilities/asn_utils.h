@@ -9,6 +9,7 @@
 #define MILLI               1000
 #define MICRO               1000000
 #define DOT_ONE_MICRO       10000000
+#define NANO_TO_MILLI       1000000
 
 //Epoch time at 2004-01-01
 #define TIME_SHIFT 1072915200000

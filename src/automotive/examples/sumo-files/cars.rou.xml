@@ -10,7 +10,7 @@
 
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car0" vClass="emergency"  maxSpeed="20.83"/>
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car1" maxSpeed="5.55"/>
-  <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car2" maxSpeed="6.94"/>
+  <vType accel="4" decel="7.5" emergencyDecel="7" minGap="1.0" id="Car2" maxSpeed="6.94"/>
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car3" maxSpeed="8.33"/>
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car4" maxSpeed="9.72"/>
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car5" maxSpeed="11.11"/>
@@ -19,7 +19,7 @@
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car8" maxSpeed="15.27"/>
   <vType accel="4" decel="7.5" emergencyDecel="10" minGap="1.0" id="Car9" maxSpeed="16.66"/>
 
-      <vehicle id="veh1" type="Car9" depart="0.305337402498" route="0">
+      <vehicle id="veh1" type="Car2" depart="0.305337402498" route="0">
     </vehicle>
       <vehicle id="veh2" type="Car0" depart="0.600133874271" route="2">
     </vehicle>

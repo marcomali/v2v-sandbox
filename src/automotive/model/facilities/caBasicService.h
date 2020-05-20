@@ -15,7 +15,8 @@ namespace ns3
     CAM_WRONG_INTERVAL=1,
     CAM_ALLOC_ERROR=2,
     CAM_NO_RSU_CONTAINER=3,
-    CAM_ASN1_UPER_ENC_ERROR=4
+    CAM_ASN1_UPER_ENC_ERROR=4,
+    CAM_CANNOT_SEND=5
   } CABasicService_error_t;
 
   class CABasicService
@@ -39,6 +40,8 @@ namespace ns3
 
     void startCamDissemination();
     void startCamDissemination(double desync_s);
+
+    uint64_t terminateDissemination();
 
     const long T_GenCamMin_ms = 100;
     const long T_GenCamMax_ms = 1000;
@@ -76,6 +79,17 @@ namespace ns3
     double m_prev_heading;
     double m_prev_distance;
     double m_prev_speed;
+
+    // Statistic: number of CAMs successfully sent since the CA Basic Service has been started
+    // The CA Basic Service can count up to 18446744073709551615 (UINT64_MAX) CAMs
+    uint64_t m_cam_sent;
+
+    // ns-3 event IDs used to properly stop the simulation with terminateDissemination()
+    EventId m_event_camDisseminationStart;
+    EventId m_event_camCheckConditions;
+    EventId m_event_camRsuDissemination;
+
+
   };
 }
 

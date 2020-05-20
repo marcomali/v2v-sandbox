@@ -108,7 +108,6 @@ namespace ns3
     m_print_summary = true;
     m_already_print = false;
 
-    m_cam_sent = 0;
     m_denm_sent = 0;
     m_cam_received = 0;
     m_denm_received = 0;
@@ -217,8 +216,6 @@ namespace ns3
       {
          double desync = ((double)std::rand()/RAND_MAX);
          m_caService.startCamDissemination(desync);
-
-         //m_send_cam_ev = Simulator::Schedule (Seconds (desync), &appSample::TriggerCam, this);
       }
 
     /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
@@ -245,9 +242,12 @@ namespace ns3
   appSample::StopApplication ()
   {
     NS_LOG_FUNCTION(this);
-    Simulator::Remove(m_speed_event);
+    Simulator::Remove(m_speed_ev);
     Simulator::Remove(m_send_denm_ev);
     Simulator::Remove(m_send_cam_ev);
+    Simulator::Remove(m_update_denm_ev);
+
+    uint64_t cam_sent;
 
     if (!m_csv_name.empty ())
       {
@@ -259,19 +259,19 @@ namespace ns3
     if (m_type=="emergency"&&!m_csv_name.empty ())
       m_csv_ofstream_speed.close ();
 
+    cam_sent = m_caService.terminateDissemination ();
+    m_denService.cleanup();
 
     if (m_print_summary && !m_already_print)
       {
         std::cout << "INFO-" << m_id
                   << ",DENM-SENT:" << m_denm_sent
-                  << ",CAM-SENT:" << m_cam_sent
+                  << ",CAM-SENT:" << cam_sent
                   << ",DENM-RECEIVED:" << m_denm_received
                   << ",CAM-RECEIVED:" << m_cam_received
                   << std::endl;
         m_already_print=true;
       }
-
-    m_denService.cleanup();
   }
 
   void
@@ -296,7 +296,7 @@ namespace ns3
 
     if(m_denm_intertime>0)
       {
-        Simulator::Schedule (Seconds (m_denm_intertime), &appSample::UpdateDenm, this, actionid);
+        m_update_denm_ev = Simulator::Schedule (Seconds (m_denm_intertime), &appSample::UpdateDenm, this, actionid);
       }
   }
 
@@ -340,7 +340,7 @@ namespace ns3
 
     if(m_denm_intertime>0)
       {
-        Simulator::Schedule (Seconds (m_denm_intertime), &appSample::UpdateDenm, this, actionid);
+        m_update_denm_ev = Simulator::Schedule (Seconds (m_denm_intertime), &appSample::UpdateDenm, this, actionid);
       }
   }
 
@@ -407,8 +407,8 @@ namespace ns3
                     orange.r=232;orange.g=126;orange.b=4;orange.a=255;
                     m_client->TraCIAPI::vehicle.setColor (m_id,orange);
 
-                    Simulator::Remove(m_speed_event);
-                    m_speed_event = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
+                    Simulator::Remove(m_speed_ev);
+                    m_speed_ev = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
                   }
                 else
                   {
@@ -418,8 +418,8 @@ namespace ns3
                     green.r=0;green.g=128;green.b=80;green.a=255;
                     m_client->TraCIAPI::vehicle.setColor (m_id,green);
 
-                    Simulator::Remove(m_speed_event);
-                    m_speed_event = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
+                    Simulator::Remove(m_speed_ev);
+                    m_speed_ev = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
                   }
               }
             else if (denm_pos_on_edge - 50 < my_pos_on_edge)
@@ -430,8 +430,8 @@ namespace ns3
                 orange.r=232;orange.g=126;orange.b=4;orange.a=255;
                 m_client->TraCIAPI::vehicle.setColor (m_id,orange);
 
-                Simulator::Remove(m_speed_event);
-                m_speed_event = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
+                Simulator::Remove(m_speed_ev);
+                m_speed_ev = Simulator::Schedule (Seconds (3.0), &appSample::SetMaxSpeed, this);
               }
           }
       }
