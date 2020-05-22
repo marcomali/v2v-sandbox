@@ -110,7 +110,7 @@ private:
   bool m_send_denm;  //!< To decide if DENM dissemination is active or not
   bool m_send_cam;  //!< To decide if CAM dissemination is active or not
   double m_cam_intertime; //!< Time between two consecutives CAMs
-  double m_denm_intertime; //!< Time between two consecutives CAMs
+  double m_denm_intertime; //!< Time between two consecutives DENMs
   bool m_print_summary; //!< To print a small summary when vehicle leaves the simulation
   bool m_already_print; //!< To avoid printing two summaries
   bool m_real_time; //!< To decide wheter to use realtime scheduler

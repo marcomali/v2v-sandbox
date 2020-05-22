@@ -63,13 +63,8 @@ namespace ns3
             Ipv4AddressValue ("10.0.0.1"),
             MakeIpv4AddressAccessor (&appSample::m_ipAddress),
             MakeIpv4AddressChecker ())
-        .AddAttribute ("DENMIntertime",
-            "Time between two consecutive DENMs",
-            DoubleValue(0.5),
-            MakeDoubleAccessor (&appSample::m_denm_intertime),
-            MakeDoubleChecker<double> ())
         .AddAttribute ("SendCam",
-            "If it is true, the branch sending the CAM is activated.",
+            "If it is true, the facility sending CAMs is activated.",
             BooleanValue (true),
             MakeBooleanAccessor (&appSample::m_send_cam),
             MakeBooleanChecker ())
@@ -111,6 +106,7 @@ namespace ns3
     m_denm_sent = 0;
     m_cam_received = 0;
     m_denm_received = 0;
+    m_denm_intertime = 0;
   }
 
   appSample::~appSample ()
@@ -221,6 +217,7 @@ namespace ns3
     /* If it is an emergency vehicle, schedule a DENM send, and repeat it with frequency 2Hz */
     if (m_type=="emergency" && m_send_denm)
       {
+        m_denm_intertime = 0.5;
         double desync = ((double)std::rand()/RAND_MAX)/4;
         m_send_denm_ev = Simulator::Schedule (Seconds (desync), &appSample::TriggerDenm, this);
       }
@@ -276,7 +273,11 @@ namespace ns3
 
   void
   appSample::UpdateDenm(ActionID_t actionid)
-  {
+  {    
+    //[TBR]
+    if (m_type=="emergency"&&!m_csv_name.empty ())
+        m_csv_ofstream_speed << m_client->TraCIAPI::vehicle.getSpeed (m_id) << std::endl;
+
     DENBasicService_error_t update_retval;
     denData data;
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
