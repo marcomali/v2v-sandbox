@@ -1,29 +1,10 @@
 #include "ns3/automotive-module.h"
 #include "ns3/traci-module.h"
-#include "ns3/core-module.h"
-#include "ns3/lte-helper.h"
-#include "ns3/epc-helper.h"
 #include "ns3/lte-v2x-helper.h"
-#include "ns3/network-module.h"
 #include "ns3/config-store.h"
-#include "ns3/ipv4-global-routing-helper.h"
 #include "ns3/internet-module.h"
-#include "ns3/mobility-module.h"
 #include "ns3/lte-module.h"
-#include <ns3/cni-urbanmicrocell-propagation-loss-model.h>
-#include <ns3/buildings-helper.h>
-#include <ns3/spectrum-analyzer-helper.h>
-#include "ns3/applications-module.h"
-#include "ns3/point-to-point-helper.h"
-#include "ns3/config-store.h"
-#include "ns3/phy-stats-calculator.h"
 #include "ns3/sumo_xml_parser.h"
-
-#include <ns3/multi-model-spectrum-channel.h>
-#include <functional>
-#include <stdlib.h>
-#include <cfloat>
-#include <sstream>
 
 using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("v2v-cv2x-sandbox");
