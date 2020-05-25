@@ -1,45 +1,12 @@
 #include "ns3/automotive-module.h"
 #include "ns3/traci-module.h"
 #include "ns3/internet-module.h"
-#include "ns3/wifi-module.h"
-#include "ns3/mobility-module.h"
 #include "ns3/wave-module.h"
-
-#include<libxml/parser.h>
-#include<libxml/xpath.h>
-#include<libxml/xpathInternals.h>
-#include<libxml/tree.h>
+#include "ns3/mobility-module.h"
+#include "ns3/sumo_xml_parser.h"
 
 using namespace ns3;
 NS_LOG_COMPONENT_DEFINE("v2v-80211p");
-
-int XML_rou_count_vehicles(xmlDocPtr doc)
-{
-    xmlXPathContextPtr xpathCtx;
-    xmlXPathObjectPtr xpathObj;
-
-    int num_vehicles=-1;
-
-    // Create xPath to select all the 'vehicle' nodes in the rou.xml file
-    xpathCtx = xmlXPathNewContext(doc);
-    if(xpathCtx == NULL) {
-        return -1;
-    }
-
-    // Evaluate the xPath expression "//vehicle" to look for all the "<vehicle>" elements
-    xpathObj = xmlXPathEvalExpression((xmlChar *)"//vehicle",xpathCtx);
-    if(xpathObj == NULL || xpathObj->nodesetval==NULL) {
-        xmlXPathFreeContext(xpathCtx);
-        return -1;
-    }
-
-    num_vehicles = xpathObj->nodesetval->nodeNr;
-
-    xmlXPathFreeObject(xpathObj);
-    xmlXPathFreeContext(xpathCtx);
-
-    return num_vehicles;
-}
 
 int
 main (int argc, char *argv[])
@@ -49,6 +16,10 @@ main (int argc, char *argv[])
   std::string datarate_config;
 
   /*** 0.a App Options ***/
+  std::string sumo_folder = "src/automotive/examples/sumo-files/";
+  std::string mob_trace = "cars.rou.xml";
+  std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
+
   bool verbose = true;
   bool realtime = false;
   bool sumo_gui = true;
@@ -56,9 +27,6 @@ main (int argc, char *argv[])
   bool send_cam = true;
   bool send_denm = true;
   bool asn = true;
-  std::string sumo_folder = "src/automotive/examples/sumo-files/";
-  std::string mob_trace = "cars.rou.xml";
-  std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
   double cam_intertime = 0.1;
   std::string csv_name;
   uint8_t txPower=26;
@@ -85,6 +53,8 @@ main (int argc, char *argv[])
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
   cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
   cmd.AddValue ("csv-log", "Name of the CSV log file", csv_name);
+
+  /* Cmd Line option for 802.11p */
   cmd.AddValue ("tx-power", "OBUs transmission power [dBm]", txPower);
   cmd.AddValue ("datarate", "802.11p channel data rate [Mbit/s]", datarate);
 
@@ -181,7 +151,6 @@ main (int argc, char *argv[])
 
   /*** 6. Setup Mobility and position node pool ***/
   MobilityHelper mobility;
-  //mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
   mobility.Install (obuNodes);
 
   /*** 7. Setup Traci and start SUMO ***/

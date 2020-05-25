@@ -17,6 +17,8 @@
 #include "ns3/point-to-point-helper.h"
 #include "ns3/config-store.h"
 #include "ns3/phy-stats-calculator.h"
+#include "ns3/sumo_xml_parser.h"
+
 #include <ns3/multi-model-spectrum-channel.h>
 #include <functional>
 #include <stdlib.h>
@@ -29,7 +31,7 @@ NS_LOG_COMPONENT_DEFINE("v2v-cv2x-sandbox");
 int
 main (int argc, char *argv[])
 {
-  double baseline= 320.0;     // Baseline distance in meter (150m for urban, 320m for freeway)
+  double baseline= 320.0;                  // Baseline distance in meter (150m for urban, 320m for freeway)
 
   /*** 0.a App Options ***/
   bool verbose = true;
@@ -39,16 +41,10 @@ main (int argc, char *argv[])
   bool send_cam = true;
   bool send_denm = true;
   bool asn = true;
-  std::string sumo_folder = "src/automotive/examples/sumo-files/";
-  std::string mob_trace = "cars.rou.xml";
-  std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
   double cam_intertime = 0.1;
   std::string csv_name;
-  bool send_lon_lat = true;
 
   /*** 0.b LENA + V2X Options ***/
-  uint16_t numberOfNodes;
-  uint32_t nodeCounter = 0;
 
   double ueTxPower = 23.0;                // Transmission power in dBm
   double probResourceKeep = 0.0;          // Probability to select the previous resource again [0.0-0.8]
@@ -66,6 +62,11 @@ main (int argc, char *argv[])
 
   double simTime = 100;
 
+  uint16_t numberOfNodes;
+  uint32_t nodeCounter = 0;
+
+  xmlDocPtr rou_xml_file;
+
   CommandLine cmd;
 
   /* Cmd Line option for application */
@@ -79,10 +80,10 @@ main (int argc, char *argv[])
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
   cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
-  cmd.AddValue ("lonlat", "Send LonLat instead on XY", send_lon_lat);
   cmd.AddValue ("csv-log", "Name of the CSV log file", csv_name);
 
   /* Cmd Line option for v2x */
+  cmd.AddValue ("tx-power", "UEs transmission power [dBm]", ueTxPower);
   cmd.AddValue ("adjacencyPscchPssch", "Scheme for subchannelization", adjacencyPscchPssch);
   cmd.AddValue ("sizeSubchannel", "Number of RBs per Subchannel", sizeSubchannel);
   cmd.AddValue ("numSubchannel", "Number of Subchannels", numSubchannel);
@@ -101,9 +102,11 @@ main (int argc, char *argv[])
   if (verbose)
     {
       LogComponentEnable ("v2v-cv2x-sandbox", LOG_LEVEL_INFO);
-      LogComponentEnable ("v2v-CAM-DENM-sender", LOG_LEVEL_INFO);
+      LogComponentEnable ("CABasicService", LOG_LEVEL_INFO);
+      LogComponentEnable ("DENBasicService", LOG_LEVEL_INFO);
     }
 
+  NS_LOG_INFO("Configuring C-V2X channel...");
   /*** 0.c V2X Configurations ***/
   /* Set the UEs power in dBm */
   Config::SetDefault ("ns3::LteUePhy::TxPower", DoubleValue (ueTxPower));
@@ -147,24 +150,32 @@ main (int argc, char *argv[])
       GlobalValue::Bind ("SimulatorImplementationType", StringValue ("ns3::RealtimeSimulatorImpl"));
 
   /*** 0.d Read from the mob_trace the number of vehicles that will be created.
-   *      The file should begin with something like:
-   *      <!-- number of vehicles:2 -->
-   *      The file must be included in the sumo-folder
+   *       The number of vehicles is directly parsed from the rou.xml file, looking at all
+   *       the valid XML elements of type <vehicle>
   ***/
+  NS_LOG_INFO("Reading the .rou file...");
   std::string path = sumo_folder + mob_trace;
-  std::ifstream infile (path);
-  std::string num_client;
-  /* Read the file*/
-  if (infile.good())
-    {
-      getline(infile, num_client);
-    }
-  infile.close();
-  /* Manipulate the string to get only the number of vehicles present */
-  num_client.erase (0,24);
-  num_client.erase (num_client.end ()-4,num_client.end ());
-  numberOfNodes = std::stoi (num_client);
 
+  /* Load the .rou.xml document */
+  xmlInitParser();
+  rou_xml_file = xmlParseFile(path.c_str ());
+  if (rou_xml_file == NULL)
+    {
+      NS_FATAL_ERROR("Error: unable to parse the specified XML file: "<<path);
+    }
+  numberOfNodes = XML_rou_count_vehicles(rou_xml_file);
+
+  xmlFreeDoc(rou_xml_file);
+  xmlCleanupParser();
+
+  if(numberOfNodes==-1)
+    {
+      NS_FATAL_ERROR("Fatal error: cannot gather the number of vehicles from the specified XML file: "<<path<<". Please check if it is a correct SUMO file.");
+    }
+  NS_LOG_INFO("The .rou file has been read: " << numberOfNodes << " vehicles will be present in the simulation.");
+
+  /* Set the simulation time (in seconds) */
+  NS_LOG_INFO("Simulation will last " << simTime << " seconds");
   ns3::Time simulationTime (ns3::Seconds(simTime));
 
   /*** 1. Create LTE objects   ***/
@@ -172,7 +183,8 @@ main (int argc, char *argv[])
   Ptr<LteHelper> lteHelper = CreateObject<LteHelper> ();
   lteHelper->SetEpcHelper (epcHelper);
 
-  lteHelper->DisableNewEnbPhy(); // Disable eNBs for out-of-coverage modelling
+  // Disable eNBs for out-of-coverage modelling
+  lteHelper->DisableNewEnbPhy();
 
   /* V2X */
   Ptr<LteV2xHelper> lteV2xHelper = CreateObject<LteV2xHelper> ();
@@ -181,30 +193,30 @@ main (int argc, char *argv[])
   /* Configure eNBs' antenna parameters before deploying them. */
   lteHelper->SetEnbAntennaModelType ("ns3::NistParabolic3dAntennaModel");
   lteHelper->SetAttribute ("UseSameUlDlPropagationCondition", BooleanValue(true));
-  Config::SetDefault ("ns3::LteEnbNetDevice::UlEarfcn", StringValue ("54990"));
+  Config::SetDefault ("ns3::LteEnbNetDevice::UlEarfcn", StringValue ("54990")); // EARFCN 54990 -> 5855-5890-5925 MHz
   lteHelper->SetAttribute ("PathlossModel", StringValue ("ns3::CniUrbanmicrocellPropagationLossModel"));
+  NS_LOG_INFO("Antenna parameters set. Current EARFCN: 54990, current frequency: 5.89 GHz");
 
   /*** 2. Create Internet and ipv4 helpers ***/
   InternetStackHelper internet;
   Ipv4StaticRoutingHelper ipv4RoutingHelper;
 
   /*** 3. Create containers for UEs and eNB ***/
-  NodeContainer ueNodes;
   NodeContainer enbNodes;
+  NodeContainer ueNodes;
   enbNodes.Create(1);
   ueNodes.Create(numberOfNodes);
 
   /*** 4. Create and install mobility (SUMO will be attached later) ***/
   MobilityHelper mobility;
-  mobility.SetMobilityModel("ns3::ConstantPositionMobilityModel");
   mobility.Install(enbNodes);
   mobility.Install(ueNodes);
   /* Set the eNB to a fixed position */
   Ptr<MobilityModel> mobilityeNBn = enbNodes.Get (0)->GetObject<MobilityModel> ();
   mobilityeNBn->SetPosition (Vector (0, 0, 20.0)); // set eNB to fixed position - it is still disabled
 
-  /*** 5. Install LTE Devices to the nodes + assign IP to UEs + manage buildings***/
-  NetDeviceContainer enbLteDevs = lteHelper->InstallEnbDevice (enbNodes); // If you don't do it, the simulation crashes
+  /*** 5. Install LTE Devices to the nodes + assign IP to UEs + manage buildings ***/
+  lteHelper->InstallEnbDevice (enbNodes); // If you don't do it, the simulation crashes
 
   /* Required to use NIST 3GPP model */
   BuildingsHelper::Install (ueNodes);
@@ -217,25 +229,26 @@ main (int argc, char *argv[])
   /* Install the IP stack on the UEs */
   internet.Install (ueNodes);
   Ipv4InterfaceContainer ueIpIface;
-  ueIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
 
   /* Assign IP address to UEs */
+  ueIpIface = epcHelper->AssignUeIpv4Address (NetDeviceContainer (ueLteDevs));
   for (uint32_t u = 0; u < ueNodes.GetN (); ++u)
     {
       Ptr<Node> ueNode = ueNodes.Get (u);
       /* Set the default gateway for the UE */
       Ptr<Ipv4StaticRouting> ueStaticRouting = ipv4RoutingHelper.GetStaticRouting (ueNode->GetObject<Ipv4> ());
       ueStaticRouting->SetDefaultRoute (epcHelper->GetUeDefaultGatewayAddress (), 1);
+
+      NS_LOG_INFO("Node "<< ueNode->GetId () << " has been assigned an IP address: " << ueNode->GetObject<Ipv4> ()->GetAddress(1,0).GetLocal());
     }
 
-  /* attach devices */
-  lteHelper->Attach (ueLteDevs);
+  NS_LOG_INFO("Configuring sidelink...");
 
   /* Create sidelink groups */
   std::vector<NetDeviceContainer> txGroups;
   txGroups = lteV2xHelper->AssociateForV2xBroadcast(ueLteDevs, numberOfNodes);
 
-  /* compute average number of receivers associated per transmitter and vice versa */
+  /* Compute average number of receivers associated per transmitter and vice versa */
   std::map<uint32_t, uint32_t> txPerUeMap;
   std::map<uint32_t, uint32_t> groupsPerUe;
   std::vector<NetDeviceContainer>::iterator gIt;
@@ -257,8 +270,6 @@ main (int argc, char *argv[])
       {
           groupsPerUe [mIt->second]++;
       }
-
-  // lteV2xHelper->PrintGroups (txGroups, log_connections);
 
   std::vector<uint32_t> groupL2Addresses;
   uint32_t groupL2Address = 0x00;
@@ -330,21 +341,15 @@ main (int argc, char *argv[])
   sumoClient->SetAttribute ("SumoWaitForSocket", TimeValue (Seconds (1.0)));
 
   /*** 7. Setup interface and application for dynamic nodes ***/
-//  CAMSenderHelper CamSenderHelper (9);
   appSampleHelper AppSampleHelper;
-
-//  CamSenderHelper.SetAttribute ("RealTime", BooleanValue (realtime));
-//  CamSenderHelper.SetAttribute ("ASN", BooleanValue (asn));
-//  CamSenderHelper.SetAttribute ("Model", StringValue ("cv2x"));
-
   AppSampleHelper.SetAttribute ("Client", PointerValue (sumoClient));
+  AppSampleHelper.SetAttribute ("RealTime", BooleanValue(realtime));
   AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
   AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
   AppSampleHelper.SetAttribute ("CSV", StringValue(csv_name));
   AppSampleHelper.SetAttribute ("Model", StringValue ("cv2x"));
-
 
   /* callback function for node creation */
   int i=0;
@@ -357,15 +362,12 @@ main (int argc, char *argv[])
       ++nodeCounter; // increment counter for next node
 
       /* Install Application */
-      //CamSenderHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddresses[i]));
       AppSampleHelper.SetAttribute ("IpAddr", Ipv4AddressValue(ipAddresses[i]));
       i++;
 
       //ApplicationContainer CAMSenderApp = CamSenderHelper.Install (includedNode);
       ApplicationContainer AppSample = AppSampleHelper.Install (includedNode);
 
-//      CAMSenderApp.Start (Seconds (0.0));
-//      CAMSenderApp.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
       AppSample.Start (Seconds (0.0));
       AppSample.Stop (simulationTime - Simulator::Now () - Seconds (0.1));
 
@@ -376,26 +378,20 @@ main (int argc, char *argv[])
   std::function<void (Ptr<Node>)> shutdownWifiNode = [] (Ptr<Node> exNode)
     {
       /* stop all applications */
-      //Ptr<CAMDENMSender> CAMSender_ = exNode->GetApplication(0)->GetObject<CAMDENMSender>();
       Ptr<appSample> appSample_ = exNode->GetApplication(0)->GetObject<appSample>();
 
-//      if(CAMSender_)
-//        CAMSender_->StopApplicationNow();
       if(appSample_)
         appSample_->StopApplicationNow();
 
        /* set position outside communication range */
       Ptr<ConstantPositionMobilityModel> mob = exNode->GetObject<ConstantPositionMobilityModel>();
-      mob->SetPosition(Vector(-1000.0+(rand()%25),320.0+(rand()%25),250.0));// rand() for visualization purposes
+      mob->SetPosition(Vector(-1000.0+(rand()%25),320.0+(rand()%25),250.0)); // rand() for visualization purposes
 
       /* NOTE: further actions could be required for a safe shut down! */
     };
 
   /* start traci client with given function pointers */
   sumoClient->SumoSetup (setupNewWifiNode, shutdownWifiNode);
-
-  /* To enable statistics collection of LTE module */
-  //lteHelper->EnableTraces ();
 
   /*** 8. Start Simulation ***/
   Simulator::Stop (simulationTime);
