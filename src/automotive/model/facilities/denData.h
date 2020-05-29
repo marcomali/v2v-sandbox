@@ -109,6 +109,10 @@ public:
   denDataLocation getDenmLocationData_asn_types() const{return m_location;}
   denDataAlacarte getDenmAlacarteData_asn_types() const{return m_alacarte;}
 
+  bool isDenmSituationDataSet() const{return m_situation_set;}
+  bool isDenmLocationDataSet() const{return m_location_set;}
+  bool isDenmAlacarteDataSet() const{return m_alacarte_set;}
+
   long getDenmMgmtDetectionTime() const{long detectionTime=0;
                                         asn_INTEGER2long (&m_management.detectionTime,&detectionTime);
                                         return detectionTime;}
@@ -142,12 +146,14 @@ public:
 
   /* Container setters */
   void setDenmMgmtData_asn_types(denDataManagement management) {m_management = management;}
-  void setDenmSituationData_asn_types(denDataSituation situation) {m_situation = situation;}
-  void setDenmLocationData_asn_types(denDataLocation location) {m_location = location;}
-  void setDenmAlacarteData_asn_types(denDataAlacarte alacarte) {m_alacarte = alacarte;}
+  void setDenmSituationData_asn_types(denDataSituation situation) {m_situation = situation; m_situation_set=true;}
+  void setDenmLocationData_asn_types(denDataLocation location) {m_location = location; m_location_set=true;}
+  void setDenmAlacarteData_asn_types(denDataAlacarte alacarte) {m_alacarte = alacarte; m_alacarte_set=true;}
 
   /* Object integrity check */
   bool isDenDataRight();
+
+  void denDataFree();
 
 private:
   INTEGER_t asnTimeConvert(long time);
@@ -155,8 +161,14 @@ private:
   denDataInternals m_internals;
   denDataHeader m_header;
   denDataManagement m_management;
+
+  bool m_situation_set=false;
   denDataSituation m_situation;
+
+  bool m_location_set=false;
   denDataLocation m_location;
+
+  bool m_alacarte_set=false;
   denDataAlacarte m_alacarte;
 };
 

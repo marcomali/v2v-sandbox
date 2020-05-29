@@ -99,6 +99,8 @@ denData::setDenmMandatoryFields_asn_types (ActionID_t actionID, TimestampIts_t d
 int
 denData::setValidityDuration (long validityDuration_s)
 {
+  if(m_management.validityDuration) free(m_management.validityDuration);
+
   if(validityDuration_s<0 || validityDuration_s>86400)
     {
       return -2;
@@ -134,4 +136,10 @@ denData::isDenDataRight()
       return false;
     }
   return true;
+}
+
+void
+denData::denDataFree()
+{
+  if(m_management.validityDuration) free(m_management.validityDuration);
 }

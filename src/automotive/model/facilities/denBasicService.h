@@ -9,6 +9,7 @@
 #include "ns3/socket.h"
 #include <functional>
 #include <mutex>
+#include <queue>
 
 #define V_O_VALIDITY_INDEX 0
 #define T_REPETITION_INDEX 1
@@ -37,7 +38,7 @@ namespace ns3 {
     DENBasicService();
     DENBasicService(unsigned long fixed_stationid,long fixed_stationtype,Ptr<Socket> socket_tx);
 
-    void addDENRxCallback(std::function<void(denData)> rx_callback) {m_DENReceiveCallback=rx_callback;}
+    void addDENRxCallback(std::function<void(denData,Address)> rx_callback) {m_DENReceiveCallback=rx_callback;}
 
     static long GetTimestampIts (void);
 
@@ -58,7 +59,8 @@ namespace ns3 {
   private:
     bool CheckMainAttributes(void);
 
-    DENBasicService_error_t fillDENM(DENM_t *denm, denData &data, const ActionID_t actionID,long referenceTimeLong);
+    DENBasicService_error_t fillDENM(DENM_t *denm, denData &data, const ActionID_t actionID, long referenceTimeLong);
+    void freeDENM(DENM_t *denm);
 
     template<typename MEM_PTR> void setDENTimer(Timer &timer,Time delay,MEM_PTR callback_fcn,ActionID_t actionID);
 
@@ -68,9 +70,9 @@ namespace ns3 {
 
     void T_R_ValidityStop(ActionID_t entry_actionid);
 
-    template <typename T> static int asn_maybe_assign_optional_data(T *data, T **asn_structure);
+    template <typename T> static int asn_maybe_assign_optional_data(T *data, T **asn_structure,std::queue<void *> &ptr_queue);
 
-    std::function<void(denData)> m_DENReceiveCallback;
+    std::function<void(denData,Address)> m_DENReceiveCallback;
 
     uint16_t m_port;
     bool m_real_time;
@@ -100,6 +102,8 @@ namespace ns3 {
     * access the map concurrently, resulting in a thread-unsafe code.
     */
     std::mutex T_Repetition_Mutex;
+
+    std::queue<void *> m_ptr_queue;
   };
 
 }

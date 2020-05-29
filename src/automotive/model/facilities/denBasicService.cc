@@ -37,12 +37,13 @@ namespace ns3 {
   DENBasicService::fillDENM(DENM_t *denm, denData &data, const ActionID_t actionID,long referenceTimeLong)
   {
     denData::denDataManagement mgmt_data;
+    INTEGER_t referenceTimeInteger;
 
     /* 1. Get Management Container */
     mgmt_data=data.getDenmMgmtData_asn_types ();
 
     /* 2. Transmission interval */
-    if(asn_maybe_assign_optional_data<TransmissionInterval_t>(mgmt_data.transmissionInterval,&denm->denm.management.transmissionInterval)==-1)
+    if(asn_maybe_assign_optional_data<TransmissionInterval_t>(mgmt_data.transmissionInterval,&denm->denm.management.transmissionInterval,m_ptr_queue)==-1)
         return DENM_ALLOC_ERROR;
 
     /* 3. Set all the containers [to be continued] */
@@ -52,30 +53,85 @@ namespace ns3 {
     denm->header.stationID = m_station_id;
 
     /* Management Container */
-    denm->denm.management.actionID = actionID;
+    denm->denm.management.actionID.originatingStationID = actionID.originatingStationID;
+    denm->denm.management.actionID.sequenceNumber = actionID.sequenceNumber;
     denm->denm.management.eventPosition = mgmt_data.eventPosition;
     denm->denm.management.detectionTime = mgmt_data.detectionTime;
-    if(asn_maybe_assign_optional_data<RelevanceDistance_t>(mgmt_data.relevanceDistance,&denm->denm.management.relevanceDistance)==-1)
+    if(asn_maybe_assign_optional_data<RelevanceDistance_t>(mgmt_data.relevanceDistance,&denm->denm.management.relevanceDistance,m_ptr_queue)==-1)
         return DENM_ALLOC_ERROR;
-    if(asn_maybe_assign_optional_data<RelevanceTrafficDirection_t>(mgmt_data.relevanceTrafficDirection,&denm->denm.management.relevanceTrafficDirection)==-1)
+    if(asn_maybe_assign_optional_data<RelevanceTrafficDirection_t>(mgmt_data.relevanceTrafficDirection,&denm->denm.management.relevanceTrafficDirection,m_ptr_queue)==-1)
         return DENM_ALLOC_ERROR;
-    if(asn_maybe_assign_optional_data<Termination_t>(mgmt_data.termination,&denm->denm.management.termination)==-1)
+    if(asn_maybe_assign_optional_data<Termination_t>(mgmt_data.termination,&denm->denm.management.termination,m_ptr_queue)==-1)
         return DENM_ALLOC_ERROR;
-    if(asn_maybe_assign_optional_data<ValidityDuration_t>(mgmt_data.validityDuration,&denm->denm.management.validityDuration)==-1)
+    if(asn_maybe_assign_optional_data<ValidityDuration_t>(mgmt_data.validityDuration,&denm->denm.management.validityDuration,m_ptr_queue)==-1)
         return DENM_ALLOC_ERROR;
 
-    memset(&(denm->denm.management.referenceTime), 0, sizeof(denm->denm.management.referenceTime));
-    asn_long2INTEGER(&(denm->denm.management.referenceTime), referenceTimeLong);
+    memset(&referenceTimeInteger, 0, sizeof(INTEGER_t));
+    asn_long2INTEGER(&referenceTimeInteger, referenceTimeLong);
 
+    denm->denm.management.referenceTime=referenceTimeInteger;
     denm->denm.management.stationType=m_stationtype;
 
-    /* Add the other containers */
+    /* Situation container */
+    if(data.isDenmSituationDataSet ())
+      {
+         denData::denDataSituation situation_data=data.getDenmSituationData_asn_types ();
+         denm->denm.situation=(SituationContainer_t*) calloc(1,sizeof(SituationContainer_t));
+
+         denm->denm.situation->eventType=situation_data.eventType;
+         denm->denm.situation->informationQuality=situation_data.informationQuality;
+
+         if(asn_maybe_assign_optional_data<sCauseCode_t>(situation_data.linkedCause,&denm->denm.situation->linkedCause,m_ptr_queue)==-1)
+             return DENM_ALLOC_ERROR;
+
+         if(asn_maybe_assign_optional_data<sEventHistory_t>(situation_data.eventHistory,&denm->denm.situation->eventHistory,m_ptr_queue)==-1)
+             return DENM_ALLOC_ERROR;
+      }
+
+    /* Location container */
+    if(data.isDenmLocationDataSet ())
+      {
+        denData::denDataLocation location_data=data.getDenmLocationData_asn_types ();
+        denm->denm.location=(LocationContainer_t*) calloc(1,sizeof(LocationContainer_t));
+
+        denm->denm.location->traces=location_data.traces;
+
+        if(asn_maybe_assign_optional_data<sSpeed_t>(location_data.eventSpeed,&denm->denm.location->eventSpeed,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+
+        if(asn_maybe_assign_optional_data<sHeading_t>(location_data.eventPositionHeading,&denm->denm.location->eventPositionHeading,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+
+        if(asn_maybe_assign_optional_data<RoadType_t>(location_data.roadType,&denm->denm.location->roadType,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+      }
+
+    /* A la carte container */
+    if(data.isDenmAlacarteDataSet ())
+      {
+        denData::denDataAlacarte alacarte_data=data.getDenmAlacarteData_asn_types ();
+        denm->denm.alacarte=(AlacarteContainer_t*) calloc(1,sizeof(AlacarteContainer_t));
+
+        if(asn_maybe_assign_optional_data<LanePosition_t>(alacarte_data.lanePosition,&denm->denm.alacarte->lanePosition,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+        if(asn_maybe_assign_optional_data<sImpactReductionContainer_t>(alacarte_data.impactReduction,&denm->denm.alacarte->impactReduction,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+        if(asn_maybe_assign_optional_data<Temperature_t>(alacarte_data.externalTemperature,&denm->denm.alacarte->externalTemperature,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+        if(asn_maybe_assign_optional_data<sRoadWorksContainerExtended_t>(alacarte_data.roadWorks,&denm->denm.alacarte->roadWorks,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+        if(asn_maybe_assign_optional_data<PositioningSolutionType_t>(alacarte_data.positioningSolution,&denm->denm.alacarte->positioningSolution,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+        if(asn_maybe_assign_optional_data<sStationaryVehicleContainer_t>(alacarte_data.stationaryVehicle,&denm->denm.alacarte->stationaryVehicle,m_ptr_queue)==-1)
+          return DENM_ALLOC_ERROR;
+
+      }
 
     return DENM_NO_ERROR;
   }
 
   template <typename T> int
-  DENBasicService::asn_maybe_assign_optional_data(T *data, T **asn_structure)
+  DENBasicService::asn_maybe_assign_optional_data(T *data, T **asn_structure, std::queue<void *> &ptr_queue)
   {
     if(data==NULL) {
         return 0;
@@ -88,7 +144,27 @@ namespace ns3 {
 
     *(*asn_structure) = *data;
 
+    ptr_queue.push ((void *) *asn_structure);
+
     return 1;
+  }
+
+  void
+  DENBasicService::freeDENM(DENM_t *denm)
+  {
+    while(!m_ptr_queue.empty ())
+      {
+        free(m_ptr_queue.front ());
+        m_ptr_queue.pop();
+      };
+
+    // Optional containers
+    if(denm->denm.situation) free(denm->denm.situation);
+    if(denm->denm.location) free(denm->denm.location);
+    if(denm->denm.alacarte) free(denm->denm.alacarte);
+
+    // Main structure
+    free(denm);
   }
 
   DENBasicService::DENBasicService(unsigned long fixed_stationid,long fixed_stationtype,Ptr<Socket> socket_tx)
@@ -136,6 +212,7 @@ namespace ns3 {
 
     if(fillDENM_rval!=DENM_NO_ERROR)
       {
+        freeDENM(denm);
         return fillDENM_rval;
       }
 
@@ -157,6 +234,8 @@ namespace ns3 {
       }
 
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) encode_result.buffer, encode_result.result.encoded+1);
+    free(encode_result.buffer);
+
     m_socket_tx->Send (packet);
 
     /* 8. 9. Create an entry in the originating ITS-S message table and set the state to ACTIVE and start the T_O_Validity timer. */
@@ -180,6 +259,8 @@ namespace ns3 {
     m_originatingITSSTable[map_index]=entry;
 
     /* 12. Send actionID to the requesting ITS-S application. This is requested by the standard, but we are already reporting the actionID using &actionID */
+
+    freeDENM(denm);
 
     return DENM_NO_ERROR;
   }
@@ -229,6 +310,7 @@ namespace ns3 {
     if(fillDENM_rval!=DENM_NO_ERROR)
       {
         T_Repetition_Mutex.unlock();
+        freeDENM(denm);
         return fillDENM_rval;
       }
 
@@ -251,6 +333,8 @@ namespace ns3 {
       }
 
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) encode_result.buffer, encode_result.result.encoded+1);
+    free(encode_result.buffer);
+
     m_socket_tx->Send (packet);
 
     /* 9. Update the entry in the originating ITS-S message table. */
@@ -267,6 +351,8 @@ namespace ns3 {
       }
 
     T_Repetition_Mutex.unlock();
+
+    freeDENM(denm);
 
     return DENM_NO_ERROR;
   }
@@ -311,7 +397,7 @@ namespace ns3 {
     else if(entry_originating_table->second.getStatus()==ITSSOriginatingTableEntry::STATE_ACTIVE)
       {
         asn_termination=Termination_isCancellation;
-        if(asn_maybe_assign_optional_data<Termination_t>(&asn_termination,&denm->denm.management.termination)==-1)
+        if(asn_maybe_assign_optional_data<Termination_t>(&asn_termination,&denm->denm.management.termination,m_ptr_queue)==-1)
           {
             T_Repetition_Mutex.unlock();
             return DENM_ALLOC_ERROR;
@@ -337,7 +423,7 @@ namespace ns3 {
     else if(entry_receiving_table->second.getStatus()==ITSSReceivingTableEntry::STATE_ACTIVE)
       {
         asn_termination=Termination_isNegation;
-        if(asn_maybe_assign_optional_data<Termination_t>(&asn_termination,&denm->denm.management.termination)==-1)
+        if(asn_maybe_assign_optional_data<Termination_t>(&asn_termination,&denm->denm.management.termination,m_ptr_queue)==-1)
           {
             T_Repetition_Mutex.unlock();
             return DENM_ALLOC_ERROR;
@@ -373,6 +459,7 @@ namespace ns3 {
     if(fillDENM_rval!=DENM_NO_ERROR)
       {
         T_Repetition_Mutex.unlock();
+        freeDENM(denm);
         return fillDENM_rval;
       }
 
@@ -403,6 +490,8 @@ namespace ns3 {
       }
 
     Ptr<Packet> packet = Create<Packet> ((uint8_t*) encode_result.buffer, encode_result.result.encoded+1);
+    free(encode_result.buffer);
+
     m_socket_tx->Send (packet);
 
     /* 6a. If termination is set to 1, create an entry in the originating ITS-S message table and set the state to NEGATED. */
@@ -429,6 +518,9 @@ namespace ns3 {
       }
 
     T_Repetition_Mutex.unlock();
+
+    freeDENM(denm);
+
     return DENM_NO_ERROR;
   }
 
@@ -580,7 +672,7 @@ namespace ns3 {
     if(decoded_denm->denm.alacarte!=NULL)
       DENBasicService::fillDenDataAlacarte (*decoded_denm->denm.alacarte, den_data);
 
-    m_DENReceiveCallback(den_data);
+    m_DENReceiveCallback(den_data,from);
   }
 
   long

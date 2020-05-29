@@ -37,7 +37,7 @@ public:
    *
    * \param the ASN.1 CAM structure containing the info of the packet that was received.
    */
-  void receiveCAM (CAM_t *cam);
+  void receiveCAM (CAM_t *cam, Address from);
 
   /**
    * \brief Callback to handle a DENM reception.
@@ -46,7 +46,7 @@ public:
    *
    * \param the denData structure containing the info of the packet that was received.
    */
-  void receiveDENM (denData denm);
+  void receiveDENM (denData denm, Address from);
 
 protected:
   virtual void DoDispose (void);

@@ -36,7 +36,7 @@ namespace ns3
     void receiveCam(Ptr<Socket> socket);
     void changeNGenCamMax(int16_t N_GenCamMax) {m_N_GenCamMax=N_GenCamMax;}
     void changeRSUGenInterval(long RSU_GenCam_ms) {m_RSU_GenCam_ms=RSU_GenCam_ms;}
-    void addCARxCallback(std::function<void(CAM_t *)> rx_callback) {m_CAReceiveCallback=rx_callback;}
+    void addCARxCallback(std::function<void(CAM_t *, Address)> rx_callback) {m_CAReceiveCallback=rx_callback;}
 
     void startCamDissemination();
     void startCamDissemination(double desync_s);
@@ -53,7 +53,7 @@ namespace ns3
     CABasicService_error_t generateAndEncodeCam();
     int64_t computeTimestampUInt64();
 
-    std::function<void(CAM_t *)> m_CAReceiveCallback;
+    std::function<void(CAM_t *, Address)> m_CAReceiveCallback;
 
     long m_T_CheckCamGen_ms;
     long m_T_GenCam_ms;

@@ -196,12 +196,12 @@ namespace ns3
     /* Set sockets, callback and station properties in DENBasicService */
     m_denService.setSocketTx (m_socket_tx_denm);
     m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
-    m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM,this,std::placeholders::_1));
+    m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM,this,std::placeholders::_1,std::placeholders::_2));
 
     /* Set sockets, callback, station properties and TraCI VDP in CABasicService */
     m_caService.setSocketTx (m_socket_tx_cam);
     m_caService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
-    m_caService.addCARxCallback (std::bind(&appSample::receiveCAM,this,std::placeholders::_1));
+    m_caService.addCARxCallback (std::bind(&appSample::receiveCAM,this,std::placeholders::_1,std::placeholders::_2));
 
     VDPTraCI traci_vdp(m_client,m_id);
     m_caService.setVDP(traci_vdp);
@@ -346,7 +346,7 @@ namespace ns3
   }
 
   void
-  appSample::receiveCAM (CAM_t *cam)
+  appSample::receiveCAM (CAM_t *cam, Address from)
   {
     /* Implement CAM strategy here */
    m_cam_received++;
@@ -366,7 +366,7 @@ namespace ns3
   }
 
   void
-  appSample::receiveDENM (denData denm)
+  appSample::receiveDENM (denData denm, Address from)
   {
     m_denm_received++;
 
