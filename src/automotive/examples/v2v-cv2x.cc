@@ -14,6 +14,10 @@ main (int argc, char *argv[])
 {
   double baseline= 320.0;                  // Baseline distance in meter (150m for urban, 320m for freeway)
 
+  std::string sumo_folder = "src/automotive/examples/sumo-files/";
+  std::string mob_trace = "cars.rou.xml";
+  std::string sumo_config ="src/automotive/examples/sumo-files/map.sumo.cfg";
+
   /*** 0.a App Options ***/
   bool verbose = true;
   bool realtime = false;
