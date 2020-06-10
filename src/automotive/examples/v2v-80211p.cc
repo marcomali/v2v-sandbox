@@ -26,8 +26,6 @@ main (int argc, char *argv[])
   double sumo_updates = 0.01;
   bool send_cam = true;
   bool send_denm = true;
-  bool asn = true;
-  double cam_intertime = 0.1;
   std::string csv_name;
   uint8_t txPower=26;
   float datarate=12;
@@ -48,10 +46,8 @@ main (int argc, char *argv[])
   cmd.AddValue ("send-cam", "Enable car to send cam", send_cam);
   cmd.AddValue ("send-denm", "Enable car to send cam", send_denm);
   cmd.AddValue ("sumo-folder","Position of sumo config files",sumo_folder);
-  cmd.AddValue ("asn", "Use ASN.1 or plain-text to send message", asn);
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
-  cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
   cmd.AddValue ("csv-log", "Name of the CSV log file", csv_name);
 
   /* Cmd Line option for 802.11p */
@@ -174,7 +170,6 @@ main (int argc, char *argv[])
   AppSampleHelper.SetAttribute ("RealTime", BooleanValue(realtime));
   AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
-  AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
   AppSampleHelper.SetAttribute ("Model", StringValue ("80211p"));
   AppSampleHelper.SetAttribute ("CSV", StringValue(csv_name));

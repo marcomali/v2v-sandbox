@@ -246,15 +246,15 @@ namespace ns3
     CABasicService_error_t errval=CAM_NO_ERROR;
 
     // Optional CAM data pointers
-    AccelerationControl_t *accelerationcontrol;
-    LanePosition_t *laneposition;
-    SteeringWheelAngle_t *steeringwheelangle;
-    LateralAcceleration_t *lateralacceleration;
-    VerticalAcceleration_t *verticalacceleration;
-    PerformanceClass_t *performanceclass;
-    CenDsrcTollingZone_t *tollingzone;
+    AccelerationControl_t *accelerationcontrol=NULL;
+    LanePosition_t *laneposition=NULL;
+    SteeringWheelAngle_t *steeringwheelangle=NULL;
+    LateralAcceleration_t *lateralacceleration=NULL;
+    VerticalAcceleration_t *verticalacceleration=NULL;
+    PerformanceClass_t *performanceclass=NULL;
+    CenDsrcTollingZone_t *tollingzone=NULL;
 
-    RSUContainerHighFrequency_t* rsu_container;
+    RSUContainerHighFrequency_t* rsu_container=NULL;
 
     Ptr<Packet> packet;
     asn_encode_to_new_buffer_result_t encode_result;

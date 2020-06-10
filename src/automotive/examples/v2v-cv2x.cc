@@ -7,7 +7,7 @@
 #include "ns3/sumo_xml_parser.h"
 
 using namespace ns3;
-NS_LOG_COMPONENT_DEFINE("v2v-cv2x-sandbox");
+NS_LOG_COMPONENT_DEFINE("v2v-cv2x");
 
 int
 main (int argc, char *argv[])
@@ -25,12 +25,9 @@ main (int argc, char *argv[])
   double sumo_updates = 0.01;
   bool send_cam = true;
   bool send_denm = true;
-  bool asn = true;
-  double cam_intertime = 0.1;
   std::string csv_name;
 
   /*** 0.b LENA + V2X Options ***/
-
   double ueTxPower = 23.0;                // Transmission power in dBm
   double probResourceKeep = 0.0;          // Probability to select the previous resource again [0.0-0.8]
   uint32_t mcs = 20;                      // Modulation and Coding Scheme
@@ -61,10 +58,8 @@ main (int argc, char *argv[])
   cmd.AddValue ("send-cam", "Enable car to send cam", send_cam);
   cmd.AddValue ("send-denm", "Enable car to send cam", send_denm);
   cmd.AddValue ("sumo-folder","Position of sumo config files",sumo_folder);
-  cmd.AddValue ("asn", "Use ASN.1 or plain-text to send message", asn);
   cmd.AddValue ("mob-trace", "Name of the mobility trace file", mob_trace);
   cmd.AddValue ("sumo-config", "Location and name of SUMO configuration file", sumo_config);
-  cmd.AddValue ("cam-intertime", "CAM dissemination inter-time [s]", cam_intertime);
   cmd.AddValue ("csv-log", "Name of the CSV log file", csv_name);
 
   /* Cmd Line option for v2x */
@@ -86,7 +81,7 @@ main (int argc, char *argv[])
 
   if (verbose)
     {
-      LogComponentEnable ("v2v-cv2x-sandbox", LOG_LEVEL_INFO);
+      LogComponentEnable ("v2v-cv2x", LOG_LEVEL_INFO);
       LogComponentEnable ("CABasicService", LOG_LEVEL_INFO);
       LogComponentEnable ("DENBasicService", LOG_LEVEL_INFO);
     }
@@ -331,7 +326,6 @@ main (int argc, char *argv[])
   AppSampleHelper.SetAttribute ("RealTime", BooleanValue(realtime));
   AppSampleHelper.SetAttribute ("SendDenm", BooleanValue (send_denm));
   AppSampleHelper.SetAttribute ("SendCam", BooleanValue (send_cam));
-  AppSampleHelper.SetAttribute ("CAMIntertime", DoubleValue (cam_intertime));
   AppSampleHelper.SetAttribute ("PrintSummary", BooleanValue (true));
   AppSampleHelper.SetAttribute ("CSV", StringValue(csv_name));
   AppSampleHelper.SetAttribute ("Model", StringValue ("cv2x"));

@@ -16,7 +16,7 @@ namespace ns3 {
   bool
   DENBasicService::CheckMainAttributes()
   {
-    return m_station_id!=ULONG_MAX && m_stationtype!=LONG_MAX && m_socket_tx!=NULL;
+    return m_station_id!=ULONG_MAX && m_stationtype!=LONG_MAX;
   }
 
     template<typename MEM_PTR> void
@@ -186,6 +186,11 @@ namespace ns3 {
         return DENM_ATTRIBUTES_UNSET;
       }
 
+    if(m_socket_tx==NULL)
+      {
+        return DENM_TX_SOCKET_NOT_SET;
+      }
+
     if(!data.isDenDataRight())
         return DENM_WRONG_DE_DATA;
 
@@ -276,6 +281,11 @@ namespace ns3 {
     if(!CheckMainAttributes ())
       {
         return DENM_ATTRIBUTES_UNSET;
+      }
+
+    if(m_socket_tx==NULL)
+      {
+        return DENM_TX_SOCKET_NOT_SET;
       }
 
     denm=(DENM_t*) calloc(1, sizeof(DENM_t));
@@ -370,6 +380,11 @@ namespace ns3 {
     if(!CheckMainAttributes ())
       {
         return DENM_ATTRIBUTES_UNSET;
+      }
+
+    if(m_socket_tx==NULL)
+      {
+        return DENM_TX_SOCKET_NOT_SET;
       }
 
     denm=(DENM_t*) calloc(1, sizeof(DENM_t));
@@ -718,6 +733,8 @@ namespace ns3 {
     T_Repetition_Mutex.unlock ();
 
     Ptr<Packet> packet = Create<Packet> (m_originatingITSSTable[map_index].getDENMPacket ());
+    // We should never reach this point if m_socket_tx==NULL (i.e. the corresponding timer will never be started)
+    // So, it should not be necessary to check that m_socket_tx!=NULL
     m_socket_tx->Send (packet);
 
     // Restart timer

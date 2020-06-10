@@ -19,11 +19,8 @@
 */
 #include "appSample.h"
 
-extern "C"
-{
-  #include "asn1/CAM.h"
-  #include "asn1/DENM.h"
-}
+#include "asn1/CAM.h"
+#include "asn1/DENM.h"
 
 namespace ns3
 {
@@ -48,11 +45,6 @@ namespace ns3
         .SetParent<Application> ()
         .SetGroupName ("Applications")
         .AddConstructor<appSample> ()
-        .AddAttribute ("CAMIntertime",
-            "Time between two consecutive CAMs",
-            DoubleValue(0.1),
-            MakeDoubleAccessor (&appSample::m_cam_intertime),
-            MakeDoubleChecker<double> ())
         .AddAttribute ("RealTime",
             "To compute properly timestamps",
             BooleanValue(false),
@@ -172,7 +164,7 @@ namespace ns3
       {
         NS_FATAL_ERROR ("Failed to bind client socket for DENMs");
       }
-    // Make the callback to handle received packets
+    /* Make the callback to handle received packets */
     m_socket_rx_denm->SetRecvCallback (MakeCallback (&DENBasicService::receiveDENM, &m_denService));
 
     /* RX socket for CAMs */
@@ -181,7 +173,7 @@ namespace ns3
       {
         NS_FATAL_ERROR ("Failed to bind client socket for CAMs");
       }
-    // Make the callback to handle received packets
+    /* Make the callback to handle received packets */
     m_socket_rx_cam->SetRecvCallback (MakeCallback (&CABasicService::receiveCam, &m_caService));
 
     /* Set Station Type in DENBasicService */
