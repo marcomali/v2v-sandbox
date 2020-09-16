@@ -27,7 +27,7 @@ main (int argc, char *argv[])
   bool send_cam = true;
   bool send_denm = true;
   std::string csv_name;
-  uint8_t txPower=26;
+  int txPower=26;
   float datarate=12;
 
   double simTime = 100;
@@ -54,7 +54,7 @@ main (int argc, char *argv[])
   cmd.AddValue ("tx-power", "OBUs transmission power [dBm]", txPower);
   cmd.AddValue ("datarate", "802.11p channel data rate [Mbit/s]", datarate);
 
-  cmd.AddValue("sim-time", "Total duration of the simulation [s])", simTime);
+  cmd.AddValue("sim-time", "Total duration of the simulation [s]", simTime);
 
   cmd.Parse (argc, argv);
 

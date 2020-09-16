@@ -117,9 +117,6 @@ private:
   std::ofstream m_csv_ofstream_cam; //!< CSV log stream (CAM), created using m_csv_name
   std::ofstream m_csv_ofstream_denm; //!< CSV log stream (DENM), created using m_csv_name
 
-  //[TBR]
-  std::ofstream m_csv_ofstream_speed;
-
   /* Counters */
   int m_cam_received;
   int m_denm_sent;

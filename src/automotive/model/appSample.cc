@@ -219,12 +219,8 @@ namespace ns3
         m_csv_ofstream_cam.open (m_csv_name+"-"+m_id+"-CAM.csv",std::ofstream::trunc);
         m_csv_ofstream_denm.open (m_csv_name+"-"+m_id+"-DENM.csv",std::ofstream::trunc);
         m_csv_ofstream_cam << "messageId,camId,timestamp,latitude,longitude,heading,speed,acceleration" << std::endl;
-        m_csv_ofstream_denm << "messageId,sequence,referenceTime,detectionTime,stationId,MeasuredDelayms" << std::endl;
+        m_csv_ofstream_denm << "messageId,sequence,referenceTime,detectionTime,stationId" << std::endl;
       }
-
-    //[TBR]
-    if (m_type=="emergency"&&!m_csv_name.empty ())
-      m_csv_ofstream_speed.open ("speed"+m_id+".csv",std::ofstream::trunc);
   }
 
   void
@@ -244,10 +240,6 @@ namespace ns3
         m_csv_ofstream_denm.close ();
       }
 
-    //[TBR]
-    if (m_type=="emergency"&&!m_csv_name.empty ())
-      m_csv_ofstream_speed.close ();
-
     cam_sent = m_caService.terminateDissemination ();
     m_denService.cleanup();
 
@@ -266,10 +258,6 @@ namespace ns3
   void
   appSample::UpdateDenm(ActionID_t actionid)
   {    
-    //[TBR]
-    if (m_type=="emergency"&&!m_csv_name.empty ())
-        m_csv_ofstream_speed << m_client->TraCIAPI::vehicle.getSpeed (m_id) << std::endl;
-
     DENBasicService_error_t update_retval;
     denData data;
     std::string my_edge = m_client->TraCIAPI::vehicle.getRoadID (m_id);
@@ -431,20 +419,9 @@ namespace ns3
 
     if (!m_csv_name.empty ())
       {
-        long timestamp;
-        if(m_real_time)
-          {
-            timestamp = compute_timestampIts ()%65536;
-          }
-        else
-          {
-            struct timespec tv = compute_timestamp ();
-            timestamp = (tv.tv_nsec/1000000)%65536;
-          }
-        long delay = timestamp - denm.getDenmMgmtReferenceTime();
         m_csv_ofstream_denm << denm.getDenmHeaderMessageID() << "," << denm.getDenmActionID().sequenceNumber << ",";
         m_csv_ofstream_denm << denm.getDenmMgmtReferenceTime() << "," << denm.getDenmMgmtDetectionTime ()<< ",";
-        m_csv_ofstream_denm << denm.getDenmHeaderStationID() << "," << delay << std::endl;
+        m_csv_ofstream_denm << denm.getDenmHeaderStationID() << std::endl;
       }
   }
 
