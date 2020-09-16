@@ -21,8 +21,7 @@ This script will download ns-3.29 and install this framework in it. The folder `
     
 * Configure waf to build the new modules with "<ns3-folder>./waf configure --build-profile=optimized --enable-examples --enable-tests" (add here what you want to enable) - The usage of the optimized profile allows to speed up the simulation time.
 Sometimes it may happen that in build phase you have some "Warning threated as error". To remove that, configure the project using:
-`CXXFLAGS="-Wno-maybe-uninitialized" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`
-and then build again.
+`CXXFLAGS="-Wno-maybe-uninitialized" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`.
 
 * Build ns3:
 `./waf build`
@@ -91,6 +90,7 @@ For visualization puproses, in SUMO normal vehicles are shown as yellow cars, wh
 * --asn                        [bool] if true, CAMs and DENMs are encoded and decoded using ASN.1 
 * --cam-intertime              [double] CAM dissemination intertime
 * --lonlat					   [bool] if true, the position information included in CAMs id traslated from XY to lonlat geo coordinates
+* --csv-log:              [string] prefix of the CSV log files where to save CAMs and DENMs disaggregated data and statistics
 
 **Note**
 In this version LTE python bindings are disabled!
