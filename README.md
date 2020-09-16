@@ -19,7 +19,10 @@ To build the project:
 `./sandbox_builder.sh`
 This script will download ns-3.29 and install this framework in it. The folder `ns-3.29` will remain linked to this GitHub repository (not to the vanilla ns-3.29 one), allowing you to more easily develop updates and possibile contributions to the sandbox.
     
-* Configure waf to build the new modules with "<ns3-folder>./waf configure --build-profile=optimized --enable-examples --enable-tests" (add here what you want to enable) - The usage of the optimized profile allows to speed up the simulation time
+* Configure waf to build the new modules with "<ns3-folder>./waf configure --build-profile=optimized --enable-examples --enable-tests" (add here what you want to enable) - The usage of the optimized profile allows to speed up the simulation time.
+Sometimes it may happen that in build phase you have some "Warning threated as error". To remove that, configure the project using:
+`CXXFLAGS="-Wno-maybe-uninitialized" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`
+and then build again.
 
 * Build ns3:
 `./waf build`
@@ -89,9 +92,5 @@ For visualization puproses, in SUMO normal vehicles are shown as yellow cars, wh
 * --cam-intertime              [double] CAM dissemination intertime
 * --lonlat					   [bool] if true, the position information included in CAMs id traslated from XY to lonlat geo coordinates
 
-**IMPORTANT**
-Sometimes it may happen that in build phase you have some "Warning threated as error". To remove that, configure the project using:
-`CXXFLAGS="-Wno-maybe-uninitialized" ./waf configure --build-profile=optimized --enable-examples --enable-tests --enable-sudo`
-and then build again
-
+**Note**
 In this version LTE python bindings are disabled!
