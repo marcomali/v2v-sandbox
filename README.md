@@ -64,17 +64,18 @@ To run the program:
 *  Nodes are created in the ns3 simulation as vehicle enters the SUMO simulation
 *  A full cv2x or 802.11p stack is implemented at lower layers
 
-In this example, every vehicle that enters the scenario will start sending CAM (in plain text) with freq 10 hz. The vehicles are divided into "passenger" vehicles (i.e., normal vehicles) and "emergency" vehicles. When an emergency vehicle enters the scenario, beside the CAMs it starts broadcasting (with frequency 2Hz) DENMs messages containing information related to the edge that it is crossing, and its actual position. The vehicles around will receive them and, in case they are on its way, they decelerate and move to the outer lane, in order to facilitate its takeover. 
-The CAMs and DENMs dissemination logic are in v2v-CAM-DENM-sender.cc while the reaction logic is inside appSimple.cc.
+In this example, every vehicle that enters the scenario will start sending CAMs with a frequency between 1Hz and 10Hz (according to the ETSI standards). The vehicles are divided into "passenger" vehicles (i.e., normal vehicles) and "emergency" vehicles. When an emergency vehicle enters the scenario, beside the CAMs it starts broadcasting DENMs messages containing information related to the road segments that it is crossing, and its actual position. The vehicles around will receive them and, in case they are on its way, they decelerate and move to the inner lane, in order to facilitate its takeover. If the inner lane is occupied, they will try to speedup and perform a lane merge maneuver as soon as possible.
+The CAMs and DENMs dissemination logic are in the modules inside the "facilities" folder while the application logic is inside appSimple.cc.
+The user *IS NOT* expected to modify the code inside the "facilities" folder, but rather to use the ETSI Facilities Layer methods inside the application.
 
 The SUMO scenario comprehends a ring-like topology, with two directions and two lanes for direction (total 4 lanes). 
 
 ![](img/img1.png)
 
-The mobility trace is managed by the file automotive/example/sumo-files/cars.rou.xml -> please note that the very first line of this file are used to determine the number of UE to be generated in the simulation and is very important to update it if the number of vehicles changes.
+The mobility trace is managed by the file automotive/example/sumo-files/cars.rou.xml.
 The SUMO map embeds also some re-routers that allows the vehicles to move in the map without exiting.
 
-For visualization puproses, in SUMO normal vehicles are shown as yellow cars, while ambulances are red. When a vehicle is the routine that allows the ambulance to takeover, it turns orange.
+For visualization puproses, in SUMO normal vehicles are shown as yellow cars, while ambulances are red. When a vehicle is reacting to the presence of an ambulance, it turns either orange or green.
 
 ![](img/img2.png)
 
