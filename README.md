@@ -2,7 +2,7 @@
 
 ns3 modules to build a simple V2V application using SUMO (v-1.6.0) and ns-3 (v-3.29).
 
-It has been tested with SUMO v1.2.0 and ns3 v3.29 on Ubuntu 18.04.
+It has been tested with SUMO v1.6.0 and ns3 v3.29 on Ubuntu 20.04.
 Back compatibility **is not** ensured with new versions of TraCI.
 
 To build the project:
@@ -33,6 +33,8 @@ The final project path-tree should be like:
                helper/
                model/
                     asn1/
+                    facilities/
+                    utilities/
                test/
     traci/
           doc/
