@@ -2,7 +2,7 @@
 
 ns3 modules to build a simple V2V application using SUMO (v-1.6.0) and ns-3 (v-3.29).
 
-It has been tested with SUMO v1.6.0 and ns3 v3.29 on Ubuntu 20.04.
+It has been tested with SUMO v1.6.0 and ns3 v3.29 on Ubuntu 18.04 and 20.04.
 Back compatibility **is not** ensured with new versions of TraCI.
 
 To build the project:
@@ -21,7 +21,9 @@ This script will download ns-3.29 and install this framework in it. The folder `
     
 * Configure waf to build the new modules with "<ns3-folder>./waf configure --build-profile=optimized --enable-examples --enable-tests" (add here what you want to enable) - The usage of the optimized profile allows to speed up the simulation time
 
-* Build ns3
+* Build ns3:
+`./waf build`
+
 
 **Important**
 The final project path-tree should be like:
