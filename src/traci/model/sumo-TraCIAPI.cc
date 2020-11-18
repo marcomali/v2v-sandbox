@@ -1617,6 +1617,44 @@ TraCIAPI::SimulationScope::getDistance2D(double x1, double y1, double x2, double
     return inMsg.readDouble();
 }
 
+libsumo::TraCIPosition
+TraCIAPI::SimulationScope::convertXYtoLonLat(double x, double y) {
+    tcpip::Storage content;
+    content.writeByte(TYPE_COMPOUND);
+    content.writeInt(2);
+    content.writeByte(POSITION_2D);
+    content.writeDouble(x);
+    content.writeDouble(y);
+    content.writeUnsignedByte (TYPE_UBYTE);
+    content.writeByte(POSITION_LON_LAT);
+    myParent.send_commandGetVariable(CMD_GET_SIM_VARIABLE, POSITION_CONVERSION, "", &content);
+    tcpip::Storage inMsg;
+    myParent.processGET(inMsg, CMD_GET_SIM_VARIABLE, POSITION_LON_LAT);
+    libsumo::TraCIPosition p;
+    p.x = inMsg.readDouble();
+    p.y = inMsg.readDouble();
+    p.z = 0;
+    return p;
+}
+
+libsumo::TraCIPosition
+TraCIAPI::SimulationScope::convertLonLattoXY(double lon, double lat) {
+    tcpip::Storage content;
+    content.writeByte(TYPE_COMPOUND);
+    content.writeInt(2);
+    content.writeByte(POSITION_LON_LAT);
+    content.writeDouble(lon);
+    content.writeDouble(lat);
+    content.writeUnsignedByte (TYPE_UBYTE);
+    content.writeByte(POSITION_2D);
+    myParent.send_commandGetVariable(CMD_GET_SIM_VARIABLE, POSITION_CONVERSION, "", &content);
+    tcpip::Storage inMsg;
+    myParent.processGET(inMsg, CMD_GET_SIM_VARIABLE, POSITION_2D);
+    libsumo::TraCIPosition p;
+    p.x = inMsg.readDouble();
+    p.y = inMsg.readDouble();
+    return p;
+}
 
 double
 TraCIAPI::SimulationScope::getDistanceRoad(const std::string& edgeID1, double pos1, const std::string& edgeID2, double pos2, bool isDriving) {
@@ -1638,25 +1676,6 @@ TraCIAPI::SimulationScope::getDistanceRoad(const std::string& edgeID1, double po
     return inMsg.readDouble();
 }
 
-libsumo::TraCIPosition
-TraCIAPI::SimulationScope::convertXYtoLonLat(double x, double y) {
-    tcpip::Storage content;
-    content.writeByte(TYPE_COMPOUND);
-    content.writeInt(2);
-    content.writeByte(POSITION_2D);
-    content.writeDouble(x);
-    content.writeDouble(y);
-    content.writeUnsignedByte (TYPE_UBYTE);
-    content.writeByte(POSITION_LON_LAT);
-    myParent.send_commandGetVariable(CMD_GET_SIM_VARIABLE, POSITION_CONVERSION, "", &content);
-    tcpip::Storage inMsg;
-    myParent.processGET(inMsg, CMD_GET_SIM_VARIABLE, POSITION_LON_LAT);
-    libsumo::TraCIPosition p;
-    p.x = inMsg.readDouble();
-    p.y = inMsg.readDouble();
-    p.z = 0;
-    return p;
-}
 
 // ---------------------------------------------------------------------------
 // TraCIAPI::TrafficLightScope-methods
