@@ -19,8 +19,8 @@
 */
 #include "appSample.h"
 
-#include "asn1/CAM.h"
-#include "asn1/DENM.h"
+#include "ns3/CAM.h"
+#include "ns3/DENM.h"
 
 namespace ns3
 {
@@ -189,11 +189,13 @@ namespace ns3
     m_denService.setSocketTx (m_socket_tx_denm);
     m_denService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
     m_denService.addDENRxCallback (std::bind(&appSample::receiveDENM,this,std::placeholders::_1,std::placeholders::_2));
+    m_denService.setRealTime (m_real_time);
 
     /* Set sockets, callback, station properties and TraCI VDP in CABasicService */
     m_caService.setSocketTx (m_socket_tx_cam);
     m_caService.setStationProperties (std::stol(m_id.substr (3)), (long)stationtype);
     m_caService.addCARxCallback (std::bind(&appSample::receiveCAM,this,std::placeholders::_1,std::placeholders::_2));
+    m_caService.setRealTime (m_real_time);
 
     VDPTraCI traci_vdp(m_client,m_id);
     m_caService.setVDP(traci_vdp);
@@ -264,7 +266,7 @@ namespace ns3
     long my_edge_hash = ((std::hash<std::string>{}(my_edge)%900000000));
     long my_pos_on_edge = (m_client->TraCIAPI::vehicle.getLanePosition (m_id));
 
-    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
+    data.setDenmMandatoryFields (compute_timestampIts(m_real_time),my_edge_hash,my_pos_on_edge);
     update_retval = m_denService.appDENM_update (data,actionid);
     if(update_retval!=DENM_NO_ERROR)
       {
@@ -307,7 +309,7 @@ namespace ns3
     long my_edge_hash = ((std::hash<std::string>{}(my_edge)%900000000));
     long my_pos_on_edge = (m_client->TraCIAPI::vehicle.getLanePosition (m_id));
 
-    data.setDenmMandatoryFields (compute_timestampIts(),my_edge_hash,my_pos_on_edge);
+    data.setDenmMandatoryFields (compute_timestampIts(m_real_time),my_edge_hash,my_pos_on_edge);
 
     trigger_retval=m_denService.appDENM_trigger (data,actionid);
     if(trigger_retval!=DENM_NO_ERROR)

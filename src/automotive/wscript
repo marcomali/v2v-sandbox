@@ -16,7 +16,7 @@ def build(bld):
     module = bld.create_ns3_module('automotive', ['core','fd-net-device','wifi', 'applications', 'mobility','internet', 'config-store','stats', 'traci'])
 
     module.source = [
-        'model/appSample.cc',
+        'model/applications/appSample.cc',
         'helper/appSample-helper.cc',
         'model/facilities/denBasicService.cc',
         'model/facilities/denData.cc',
@@ -250,7 +250,7 @@ def build(bld):
     headers = bld(features='ns3header')
     headers.module = 'automotive'
     headers.source = [
-        'model/appSample.h',
+        'model/applications/appSample.h',
         'helper/appSample-helper.h',
         'model/facilities/denBasicService.h',
         'model/facilities/denData.h',
